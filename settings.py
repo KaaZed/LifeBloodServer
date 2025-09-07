@@ -1,5 +1,6 @@
 # settings.py — single source of truth for env + dynamic app settings
 import os
+import logging
 from pathlib import Path
 from typing import Dict
 
@@ -29,12 +30,16 @@ BOT_USERNAME = _ENV.get("BOT_USERNAME")
 ADMIN_API_TOKEN = _ENV.get("ADMIN_API_TOKEN")
 
 _missing = [k for k,v in {
-    "DB_DSN":DB_DSN, "TELEGRAM_BOT_TOKEN":TELEGRAM_BOT_TOKEN,
-    "BOT_USERNAME":BOT_USERNAME, "ADMIN_API_TOKEN":ADMIN_API_TOKEN
+    "DB_DSN":DB_DSN,
+    "TELEGRAM_BOT_TOKEN":TELEGRAM_BOT_TOKEN,
+    "BOT_USERNAME":BOT_USERNAME,
 }.items() if not v]
 
 if _missing:
     raise RuntimeError(f"Missing required .env keys: {', '.join(_missing)}")
+
+if not ADMIN_API_TOKEN:
+    logging.warning("ADMIN_API_TOKEN not set; admin API features disabled")
 
 # --- dynamic app settings from DB (app_settings)
 # usage:

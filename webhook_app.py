@@ -142,7 +142,7 @@ async def _ensure_dashboard(user_id: int, chat_id: int, stats: Dict[str, Any], i
             except Exception as e:
                 err(f"[dash] restore db error: {e}")
         if not msg_id:
-            info(f"[dash] no msg in session → skip (wait new session)")
+            await _send_new(user_id, chat_id, text, sig_curr)
             return
 
     if last_sig == sig_curr:
@@ -187,7 +187,7 @@ async def webhook(request: Request):
             err(f"[webhook] bad json: {e}")
             return JSONResponse({"ok": False})
 
-    msg = update.get("message") or update.get("edited_message") or {}
+    msg = update.get("edited_message") or update.get("message") or {}
     if not msg:
         return JSONResponse({"ok": True})
 
@@ -216,7 +216,7 @@ async def webhook(request: Request):
         lon = float(loc.get("longitude"))
         ts = int(msg.get("date") or int(time.time()))
         live_period = loc.get("live_period")
-        is_new_session = bool(update.get("message") and live_period)
+        is_new_session = bool(live_period and "edit_date" not in msg)
 
         try:
             if db and hasattr(db, "process_location"):

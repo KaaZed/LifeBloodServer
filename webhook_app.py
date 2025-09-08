@@ -1,10 +1,14 @@
++8-0
 import os, json, asyncio, time
 from typing import Any, Dict, Tuple
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
+from dotenv import load_dotenv
 from logger import info, err
 from db import LifeBloodDB
 from tg_api import send_text, edit_text, delete_message
+
+load_dotenv()
 
 APP_VER = "rescue_118"
 
@@ -26,6 +30,11 @@ async def _startup():
         info("[startup] ok")
     except Exception as e:
         err(f"[startup] db connect error: {e}")
+    finally:
+        token_present = bool(os.getenv("TELEGRAM_BOT_TOKEN"))
+        dsn_present = bool(os.getenv("DB_DSN"))
+        info(f"[startup] TELEGRAM_BOT_TOKEN present: {token_present}")
+        info(f"[startup] DB_DSN present: {dsn_present}")
 
 @app.get("/ping")
 async def ping():
@@ -51,13 +60,7 @@ def _fmt_lbc(x: Any) -> str:
 
 def _sig(stats: Dict[str, Any]) -> Tuple[int,int,float,float,int,int,str]:
     s = stats or {}
-    def _fi(v):
-        try: return int(v)
-        except: return 0
-    def _ff(v):
-        try: return round(float(v), 6)
-        except: return 0.0
-    return (
+    
         _fi(s.get('today_steps')),
         _fi(s.get('total_steps')),
         _ff(s.get('today_lbc')),
@@ -65,7 +68,6 @@ def _sig(stats: Dict[str, Any]) -> Tuple[int,int,float,float,int,int,str]:
         _fi(s.get('energy_left')),
         _fi(s.get('energy_max')),
         (s.get('reason_if_not_counted') or "").strip(),
-    )
 
 def _dash_text(stats: Dict[str, Any]) -> str:
     s = stats or {}

@@ -1,0 +1,890 @@
+the benefits of simple actions
+LifeBloodBenefit for others:
+The donor module rewards
+the LifeBlood Donation Coin ($LBD)  user for 
+donating blood and its components.
+Global benefit:  
+Thanks to the realized benefits, it motivates more 
+and more people to physical activity and blood 
+donation.Myself benefit: 
+The project uses the concept of Move to Earn, 
+rewarding the LifeBlood Coin ($LBC)  user for 
+physical activity.
+
+
+LifeBlood Architecture:
+Platform:
+Telegram all kinds of devices
+Contents:
+Promo - Pages
+Telegram Chanels 
+Telegram Mini-App (TMA)
+Wiki
+Language communities
+ X | Discord | VK   
+Assets:
+LifeBlood Сoin
+Supply:  100 000 000 000  $LBC
+LifeBlood Donation Coin
+Supply:  1 000 000 $LBD
+NFT:
+Sneackers: ∞ 
+Bycicles: ∞ 
+Squad: 5000 
+Localizations:
+Россия | Беларусь
+КазаKстан | English (2025:Q1)
+ไทยแลนด์ |  /uni0644/uni0639/uni0631/uni0628/uni064A/uni0629   (2025:Q3)
+
+The key asset of the 
+project is the LifeBlood 
+Coin ($LBC)
+The only way to mine 
+$LBC  is an "OutDoor" 
+activity with the LifeBlood 
+app enabled. Walking or 
+cycling.
+The LifeBlood app is 
+conveniently integrated 
+directly into Telegram, 
+taking up the entire 
+potential of the audience.
+The total issue of LifeBlood Coin ($LBC) is 
+100,000,000,000 . The rights to change the 
+issue will be revoked within the framework of 
+the standard protocol of The Open Network, 
+excluding any possibility of adjustment.
+LifeBlood Coin:
+The Open Network 
+TON  Standart 
+Mining simulates the difficulty of mining a 
+physical resource. Gold, oil, or any other that 
+requires "investments" to be mined. In 
+LifeBlood, such an "investment" is the time of 
+OutDoor activity.
+
+
+Distance tracking technology:
+OutDoor activity is recorded by a mini-application 
+built into Telegram that sequentially captures the 
+user's location from the geo-position broadcast to 
+the bot. 
+The technology is based on obtaining GPS data, 
+recording it and subsequent mathematical 
+filtering. LifeBlood takes into account not so much 
+steps as the distance traveled on the street.
+However, the natively recommended way of 
+activity is walking. Therefore, the distance is still 
+converted into steps, but the step length is 
+averaged for all users at the level of 0.75m \ Step.
+So, the main resource spent on the production of 
+$LBC is precisely the time of "OutDoor" Activity.
+LifeBlood does not control the way you choose to 
+travel. The only two conditions fulfilled together 
+are a set speed range and a steady GPS signal 
+corresponding to an open area.
+This technology imposes features due to which 
+data accounting anomalies may be observed, 
+depending on the quality of coverage, device, 
+region and a number of other parameters 
+affecting the GPS signal. 
+
+R-Found  (60 000 000 000 $LBC)  - The 
+Renewable  fund fund of the project. Due to 
+the maintained deficit, it is replenished 
+faster than it is spent.
+L-Found  (15 000 000 000 #LBC)  - The 
+exchange Liquidity  fund. It is blocked as 
+liquidity and gradually migrates from users to 
+the working fund.
+D-Found  (25 000 000 000 $LBC)  -  The 
+Development  Fund. Funds are brought to the 
+market during Sale_Faze in proportion to the 
+development of the project.
+$LBC Tokenomics:
+60%25%
+15%
+
+Paying for itself from the start. The project does 
+not require one-time capital injections and will 
+develop regardless of them. Therefore, the only 
+and unlimited possibility of entry is the purchase of 
+assets on general terms.
+Upon completion of Sale_Faze_5, an amount 
+equivalent to 30% of the collection phase in $TON 
+will be allocated to Hackaton, in order to develop 
+secure smart contracts for the storage and 
+distribution of funds $LBCThe transition to Sale_Faze_6 has an additional 
+condition  - the completion of the development of 
+$LBC storage contracts. Before the start of the phase, 
+all funds will be transferred to the created contracts, 
+and the disposal rights will be revoked from the owner
+The grant amount: 17,971,9 $TON. The course at the 
+time of the event does not affect the amount.Sale_Faze  - phases of the withdrawal of $LBC from 
+the development fund (D-Fund)  for sale. The 
+internal sales rate and the amount of $LBC strictly 
+correspond to Sale_Faze (Columns 1 and 2).
+The Sale_Faze change occurs when the total 
+number of steps completed and the number of NFT 
+owners together reach a predetermined threshold 
+(Columns 4 and 5)
+All expenses and profits  of the project are covered 
+from funds received in $TON from users, within the 
+framework of Sale_Faze. The team does not have its 
+own $LBC pool, which excludes the dumping of 
+coins into the market by developers. 
+Thus, no one has exclusive preferences.
+
+5000000
+7375000
+10878125
+16045234
+23666721
+34908413
+51489909
+75947616
+112022734
+165233532
+243719460
+359486204
+530242150
+782107172
+1153608079
+1701571916
+2509818576
+3701982400
+5460424040
+8054472719
+2000
+1333,33
+888,89
+592,59
+395,06
+263,37
+175,58
+117,06
+78,04
+52,02
+34,68
+23,12
+15,41
+10,28
+6,85
+4,57
+3,04
+2,03
+1,35
+0,90
+25000
+18438
+13598
+10028
+7396
+5454
+4023
+2967
+2188
+1614
+1190
+878
+647
+477
+352
+260
+191
+141
+104
+77
+200
+400
+800
+1600
+3200
+6400
+12800
+25600
+51200
+102400
+204800
+409600
+819200
+1638400
+3276800
+6553600
+13107200
+26214400
+52428800
+104857600
+5000000
+10062500
+20341344
+41303098
+84237669
+172560866
+355043981
+733698387
+1522791002
+3174257844
+6645308797
+13971761746
+29501374926
+62557665530
+133216548746
+284883589493
+611787508435
+1319319761941
+2856986944483
+6213471777673
+26000
+52325
+105775
+214776
+438036
+897317
+1846229
+3815232
+7918513
+16506141
+34555606
+72653161
+153407150
+325299861
+692726053
+1481394665
+3181295044
+6860462762
+14856332111
+32310053244
+0,005912941176
+0,008738029412
+0,01292223528
+0,0191294241
+0,02835853716
+0,04212438769
+0,06274839757
+0,09383864438
+0,1411073494
+0,2138113801
+0,3273824305
+0,5083992527
+0,8042932942
+1,302831803
+2,172157803
+3,744666566
+6,695427788
+12,42640607
+23,90206606
+47,4876776
+0
+6000000
+12000000
+24000000
+48000000
+96000000
+192000000
+384000000
+768000000
+1536000000
+3072000000
+6144000000
+12288000000
+24576000000
+49152000000
+98304000000
+196608000000
+393216000000
+786432000000
+1572864000000
+5026000
+1427325
+-1016100
+-7739990
+-23895243
+-60194270
+-138663862
+-304237152
+-648058753
+-1354260327
+-2793724934
+-5711860635
+-11604350700
+-23468592967
+-47305665868
+-95121033419
+-190916886380
+-382653554838
+-766115243849
+-1532499474037
+59994974000
+59998572675
+60001016100
+60007739990
+60023895243
+60060194270
+60138663862
+60304237152
+60648058753
+61354260327
+62793724934
+65711860635
+71604350700
+83468592967
+107305665868
+155121033419
+250916886380
+442653554838
+826115243849
+1592499474037
+0,9999162333
+0,9999762113
+1,000016935
+1,000129
+1,000398254
+1,001003238
+1,002311064
+1,005070619
+1,010800979
+1,022571005
+1,046562082
+1,095197677
+1,193405845
+1,391143216
+1,788427764
+2,585350557
+4,181948106
+7,377559247
+13,7685874
+26,5416579SALE
+FazeTON\
+LBC~Purchase
+for 1 playerNFT 
+HoldersTotal
+steps$LBC per
+stepsDistributed
+emissions (%)Total value
+ to create NFTDeficit
+$LBCThe fund in
+the periodRecycling
+rate
+Mathematical
+model:
+
+
+New NFTs: 
+- Consumes the largest amount of $LBC 
++ Increases the mining of $LBC by 10 times more.  
++ Access to the "Craft"  more rare NFTs
++ Opens the mechanics of "W2E"  and "Squad"
++ Access to power-ups 
+Participation in W2E tournaments:   
+- Consumes the average amount of $LBC 
++ Allows possible doubling of $LBC 
+Purchase of powerups: 
+- Consumes a small amount of $LBC 
+ + Increases the "useful" activity of NFTThe entire issue of R-Fund  ($60,000,000,000 
+$LBC)  is distributed among users as a reward for 
+the completed activity.
+The working fund is replenished from all costs 
+within the application. There are only three internal 
+ways to spend $LBC:The volume of the working fund in the period always 
+tends to the maximum value - the mathematical 
+model generates a growing deficit. Up to 80% of the 
+entire $LBC issue held in R-Fund is blocked outside 
+the market and cannot enter it bypassing the user.Each SaleFaze corresponds to a specific amount 
+of $LBS (column 6)  distributed as rewards.Renewable fund
+R-Found 
+
+
+Замкнутость - расход пользователя становится 
+доходом проекта, который позже становится до-
+ходом пользователя
+Funds distributed during SaleFaze are strictly 
+limited (column 1). And the course is obviously 
+known (column 2)
+The entire issue is D-Found - 25 000 000 000 
+$LBC will be sold out in 20 stages - "Sale_Faze".Development Fund
+D-Found 
+After the completion of the model cycle, it can be 
+scaled and repeated an unlimited number of times.
+When Sale_Faze 
+changing, all  $LBC coins 
+remaining in the pool are 
+added to the new one 
+and set at the new cost.
+R
+LL
+D
+DeX
+
+
+The first listing on DEX takes place at the end of 
+Sale_Faze_03 at the rate of  1 $TON = 888.89 $LBC.
+The initial liquidity pool will amount to the 
+equivalent of 50% of the Sale_Faze_03 fee, that is, 
+5,439,062.5 $LBC to 6,118.93 $TON
+The number of coins "on hand" (T) at the time of 
+listing can be calculated as the number of $LBC 
+issued per step(Ls) plus the number of sold in 
+SaleFaze(Lf) minus the cost of NFT required for 
+the transition phase(N): Ls+Lf-N=T.
+23253125+184100-24000000=-562775 distributed 
+to 800 NFT holders, average deficit per user 
+-703.46 $LBC
+This approach will immediately create a prerequisite 
+for an already stock exchange rate increase, due to a 
+default, instead of falling and dumping.From the moment of listing, at the end of each 
+Sale_Faze, 20% of the $TON from the phase 
+collection and the amount of $LBC from the fund 
+equivalent to the current exchange rate are added 
+to the liquidity pool.
+The internal rate immediately after listing goes 
+to Sale_Faze_04, all tokens not sold in 
+SaleFaze_03 are exposed inside LifeBlood at the 
+rate of 1 $TON = 592.59 $LBCLiquidity Fund
+L-Found 
+
+
+NFT:
+The first 500 NFT will be sold in Presale and 
+used in promotional campaigns of the initial 
+SaleFaze. All subsequent NFTs can only be 
+created by users using the "Craft" mechanics.
+The production of new NFTs is a necessary 
+condition for changing SaleFaze and at the same 
+time the most expensive action for the user.
+NFT gives the user unique advantages: hidden 
+mechanics, increased generation of $LBC, rare 
+NFT mines, Squad's and more.The total NFT emission is not limited, however, 
+the average minimum accumulation period of 
+$LBC to create a new NFT is ~576 days.
+Per user, with a daily activity of 10,000 steps and 
+the presence of NFT. In the "Free" mode, it will 
+take 10 times longer.
+
+
+NFT-shoes: 
+Unique (UNIC): High $LBC 
+generation and a large 
+power reserve. They are 
+sufficient for high activity.
+Common (CMN) : Give all the 
+basic advantages of NFT, but 
+have a small power reserve 
+and minimal generation.Uncommon (UNC) : A good 
+ratio of the cost of production 
+and attributes. Comfortable 
+in everything.
+All divided into 3 types:
+Hiking: 3-12 Km\h 
+Casual: 3-8 Km\h 
+Running: 5-12 Km\h Legendary (LEG) : Legends 
+of LifeBlood. A few players 
+have such NFTs. They cannot 
+be created or bought.
+Rarity (RAR) :  The rarest of 
+those that can be created. 
+Have the best attributes and a 
+convenient speed mode.
+
+Speed Boost: Defines the production of $LBC 
+per step. The minimum possible value of NFT 
+is 1. With it, the user will receive 0.0042 $LBC 
+for each step.
+Speed (MIN-MAX): Only when driving in this 
+speed range, #LBC will be credited to the 
+balance.
+Luck: A chance to restore all the energy of the 
+NFT. A unit of luck gives a chance of triggering 
+equal to 0.00005% for each step.
+Weather: In the "own" season, it gives a 30% 
+bonus to the number of daily steps, and the 
+same penalty for all others. There are Summer 
+(01.06-31.08), Warm (01.12-28.02), Demi 
+(01.03-31.05) and (01.09-10.11), None - no 
+bonus and penalty.
+Charging: The number of times the NFT can 
+be charged with a battery
+Crafted: The name of the "Crafter" of this NFT
+Category: The rarity of NFT. The actual 
+proportion and distribution of categories is 
+determined by user preferences.
+Energy:  Power reserve for the day from 00:00 
+to 23:59 (UTC/GMT +3). One unit of energy 
+allows you to walk 3,000 steps.
+Durability: the chance of triggering the 
+"battery". The low strength of the NFT can use 
+up $LBC, but has no effect.
+
+
+Free entry forever:
+Steps:
+Speed:
+Boost:
+0,000425-720000
+/FL004Ch®/FL004Dh/FL0045h/FL05A8h/FL004Ch/FL004Fh/FL004Fh/FL0595h
+Access to the generation of $LBC is available to 
+any willing Telegram user, without attachments, 
+"input" NFTs, and even the need to download the 
+application. And it will always be like this.MetaCros - A basic LifeBlood user tool that 
+allows you to generate $LBC from OutDoor 
+activity. It has a limited number of steps and a 
+10-fold reduced generation volume. Not NFT.
+In order to balance the growth in the number of 
+"Free" users constantly generating $LBC, every 4 
+Sale_Faze it is planned to reduce the output of 
+the "MetaCros" by 2 times.
+
+
+FREE-mode (без NFT): 
+0,0052 /10 = 0.00042 * 10000 = 4,2
+NFT-mode (SpB = 1,01): 
+0,0042*1,01 = 0,004242 * 10000 = 42,42
+NFT-mode (SpB = 1,3): 
+0,0042*1,3 = 0,00546* 10000 = 54,6
+SQUAD-mode (SpB = 1,3; SqB = 1,2): 
+0,0042*1,3 = 0,00546 * (10000 * 1,2) = 65,5
+81,2 - 10% (Squad-Bank) = 58,968
+To Squad-Bank =  6,532 
+Base gain of $LBC:
+0.00042 for each step.
+The free mode is open
+to any user without
+restrictions.
+As part of the Squad, the user
+receives a 20%-40% (+pBOOST)
+increase in step charge
+for all NFTs.10% of the daily generation
+$LBC goes to Squad-Bank,
+which is managed by the owner
+of Squad-NFTThe presence of any NFT, 
+increases the gain of $LBC
+for each step by 10 times
+or more0,00042
+х10
+х11
+Party - modE
+SOLO - modE
+free - modE
+ 10000
+/FL004Ch®/FL004Dh/FL0045h/FL05A8h/FL004Ch/FL004Fh/FL004Fh/FL0595h
+O(1)
+Rh+Generating $LBC:
+*SpB- Speed Boost; *SqB  - Squad Boost
+
+Battery: Charges the NFT 
+to its maximum energy 
+reserve. However, the 
+chance of this gain being 
+successfully triggered depends 
+on the Durability  attribute.
+The result is determined by a simple "throw" of a 
+random number from 1 to 100, and the Probability 
+value is the percentage of success.
+For example: Durability equal to 77 will be 
+equivalent to 77% success, a roll greater than 77 will 
+not lead to a result, less will apply reinforcement.NFT Amplifiers:
+They are purchased only in the app. Not NFT. 
+One does not cancel or exclude the other.Water: Increases the daily 
+power reserve of all user's 
+NFTs by 10-30%. The effect 
+is 24 hours.
+One serving of water 
+increases the stock of 
+steps by 10%, for all 
+available NFTs. It can 
+be applied up to 3 times, 
+summing up the effect to 30% 
+of the total increase.
+5$LBC
+10$LBC
+
+The creation of new NFTs can take place in 3 modes 
+(BluePrint). Each of them has a base chance of 
+falling (Bs) and a different number of seed slots.
+The result of the "Craft" is determined by throwing a 
+random number. Each BluePrint type has a basic 
+chance, and the embedded seed increases your 
+minimum roll by a predetermined amount.Crafting NFT:
+
+
+Access to the creation of NFT categories Unique and 
+above requires the presence of any other NFTUnique (UNIC):  The 
+production chance of 10-17% 
+can only be created from the 
+Rare and Difficult recipe
+Uncommon (UNC): 
+Chance of creation 
+25-55%. Can be created 
+from any recipe
+Common (CMN): The 
+chance of creation is 10-85% 
+The most affordable NFT 
+models
+Legendary (LEG): They are 
+given only for special game
+"Achievements", cannot be 
+produced
+Rarity (RAR):  The chance 
+of creation is 5-9%, Can 
+only be created from a 
+Rarity recipe
+
+BluePrint and Seeds are not NFT. The mechanics of 
+"Craft" are implemented OffChainEvery seed in the slot:
+RAR: +8 to throw
+UNIC: +7 to throw
+UNC: +6 to throw
+Rotten: +5 to throw
+Difficult: 3 Seed-slots
+Basic chance (Bs)
+CRASH: 1-30 (30%)  
+CMN: 31-90 (60%) 
+UNC: 91-100 (10%)
+LifeBlood
+SNEAKERSDATA 02DATA 01
+DATA 03
+DATA 04
+LifeBlood
+SNEAKERSDATA 02DATA 01
+DATA 03
+DATA 04
+Rarity: 4 Seed-slots
+Basic chance (Bs)
+CRASH: 1-35 (35%)  
+CMN: 36-70  (35%) 
+UNC: 71-75 (5%)
+UNIC: 76-95 (20%)
+RAR: 96-100 (5%)
+Common: 2 Seed-slots
+Basic chance (Bs)
+CRASH: 1-25 (25%)  
+CMN: 26-95 (70%)
+UNC: 96-100 (5%) 
+LifeBlood
+SNEAKERSDATA 02DATA 01
+DATA 03
+DATA 04
+
+
+LifeBlood
+SNEAKERSDATA 02DATA 01
+DATA 03
+DATA 04
+45000  
+LifeBlood
+SNEAKERSDATA 02DATA 01
+DATA 03
+DATA 04
+30000  
+LifeBlood
+SNEAKERSDATA 02DATA 01
+DATA 03
+DATA 04
+15000  The more difficult the recipe, the higher the basic 
+chance of destruction. In case of a "CRASH", the 
+cost of the recipe and seeds is spent in full, but the 
+NFT will not be received.
+The only way to reduce the chance of destruction is to 
+use more expensive seeds. They will increase your 
+minimum possible roll.
+All $LBC spent on production replenish the working 
+fund (R-Fund) back, allowing you to maintain the 
+distribution cycle indefinitely.The cost of Craft:
+5500  
+7700  6600  
+8800  Rotten: Unc:
+Rar: Unic:
+
+
+The WinToEarn tournament mechanics allows you 
+to multiply the amount of $LBC mined
+In a model completed for a period, the profit of 
+some participants is always achieved at the 
+expense of the loss of others. Provided that the 
+issue of an asset is limited, within the framework of 
+such a model, its value will have an avalanche-like 
+character. The main profit is extracted only due to 
+the time of entry and exit of capital, and large 
+holders become the main beneficiaries.
+The Win To Earn mechanics creates transparent 
+conditions where it is known that the losers' 
+investments will go to the winners, and the result 
+depends only on the user's efforts.
+The user voluntarily participates in W2E 
+tournaments or refuses.W2E
+
+
+Win2Earn evenly distributes the expense of the 
+losing half of the participants as the profit of the 
+winning one, according to the conditions:
+The prize pot is formed from the amount of tickets 
+purchased. Example: a ticket to the tournament 
+cost 50 $LBC, and 20 participants of the 
+tournament (50*20=1000) the pot of the 
+tournament will be 1000 $LBC.
+The distribution of awards takes place according 
+to the line in the ranking in the tournament, which 
+is determined by the achieved result of activity 
+per day.
+The basic payout coefficient (Kb), a given 
+constant equal to 1.95, such a value divides the 
+bank in half and leaves 2.5% of the LifeBlood 
+commission.
+With a value of Kb = 2, the entire collected pot will 
+be distributed among the players, and with Kb= 3, 
+the project will distribute an additional ~ 30% of 
+its funds to those collected from the participants.
+The individual payout coefficient (Ki) is calculated 
+as: (K-N)/K=Ki Where K is the total number of 
+participants and N is the participant's number in 
+the rating.
+The final award (P) is calculated as: B*Kb*Kv=P The 
+price of the entrance ticket (B) sequentially 
+multiplied by the basic (Kb) and individual (Ki) 
+coefficients.Tournament mechanics:
+
+Tournament calculation:
+User
+User #16
+User #321
+User #172
+User #102
+User #3023
+User #4353
+User #543
+User #34
+User #5231
+User #678
+User #5678
+User #276
+User #5429
+User #7123
+User #2345
+User #45
+User #87
+User #1723
+User #8065
+User #1231Steps
+32456
+26489
+26315
+22008
+19432
+19421
+19112
+17891
+15202
+12489
+9690
+7460
+5231
+5209
+4996
+4809
+3214
+2054
+1980
+772$LBC
+92,63
+87,75
+82,88
+78,00
+73,13
+68,25
+63,38
+58,50
+53,63
+48,75
+43,88
+39,00
+34,13
+29,25
+24,38
+19,50
+14,63
+9,75
+4,88
+0,00№
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+The calculation clearly shows the uniform 
+distribution of the prize pot depending on the line 
+of the overall rating. This model is equally stable for 
+any number of participants.Enter: 50 $LBC | Participants: 20
+
+Tournament modes:
+The tournament distance is 25,000 steps. UserA 
+completed it in 3 hours and 21 minutes. Three hours 
+later, UserB joined and overcame it in 3 hours and 19 
+minutes. UserB takes the first place in the rating, 
+UserA the second.
+UserA has completed 41679 steps in a full day, and 
+UserB has completed 39875 steps. Thus, UserA 
+occupies the first line of the rating, UserB the second.
+●You can only participate in one tournament at a time.
+●W2E does not affect the basic generation of $LBC. 
+●Participation in the tournament costs $LBC or $TONThe goal: To cover a given distance in the 
+shortest period of time among all 
+participants.
+Stamina: To overcome the greatest 
+distance among all participants in 24 
+hours.
+Speed: Cover the longest distance in 4 
+hours from the moment of entering the 
+tournament.
+UserA joined at 12:03, by 16:03, in 4 hours, he 
+managed to complete 15724 steps. UserB entered at 
+18:27, 4 hours before 22.27, he ran 19715 steps. UserB 
+will take a higher position in the ranking.
+
+Tournament Leagues:
+The league is suitable for users who are not striving 
+for super-results, but who want to add a sporty 
+element.
+The user chooses the participation league 
+independently before each tournament.Noob: the minimum entry price. The 
+prize pot is divided into 99% of the 
+participants. Results from 10k steps.
+Pro: The entry price is significantly 
+higher, the prize pot is divided into only 
+60% of the participants. From 50k steps.
+A real competition for big prizes. As a rule, 
+participants demonstrate results that are 
+unattainable by an ordinary user.
+It makes no sense to use transport 
+in hiking tournaments and vice versa because of the 
+speed range and the difference in production of 
+$LBC. The minimum speed to account for activity 
+with an NFT-bicycle is 12 km/h, but for NFT-shoes it 
+is the maximum. When the mark is crossed, the 
+activity in the walking tournament will no longer be 
+taken into account. Moreover, moving at a minimum 
+speed will severely limit the possibilities of 
+generating $LBC from an active NFT.
+Bicycle: Cycling tournaments are 
+held separately from pedestrian, and 
+the possibility of crossing is excluded.
+
+
+wishes you happiness
+The LifeBlood Consortium
+KZ
+2024

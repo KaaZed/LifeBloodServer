@@ -1,4 +1,3 @@
-+8-0
 import os, json, asyncio, time
 from typing import Any, Dict, Tuple
 from fastapi import FastAPI, Request
@@ -58,16 +57,32 @@ def _fmt_lbc(x: Any) -> str:
     except Exception:
         return "0.00000"
 
-def _sig(stats: Dict[str, Any]) -> Tuple[int,int,float,float,int,int,str]:
+def _fi(value: Any) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        try:
+            return int(float(value))
+        except (TypeError, ValueError):
+            return 0
+
+def _ff(value: Any) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
+
+def _sig(stats: Dict[str, Any]) -> Tuple[int, int, float, float, int, int, str]:
     s = stats or {}
-    
-        _fi(s.get('today_steps')),
-        _fi(s.get('total_steps')),
-        _ff(s.get('today_lbc')),
-        _ff(s.get('total_lbc')),
-        _fi(s.get('energy_left')),
-        _fi(s.get('energy_max')),
-        (s.get('reason_if_not_counted') or "").strip(),
+    return (
+        _fi(s.get("today_steps")),
+        _fi(s.get("total_steps")),
+        _ff(s.get("today_lbc")),
+        _ff(s.get("total_lbc")),
+        _fi(s.get("energy_left")),
+        _fi(s.get("energy_max")),
+        (s.get("reason_if_not_counted") or "").strip(),
+    )
 
 def _dash_text(stats: Dict[str, Any]) -> str:
     s = stats or {}

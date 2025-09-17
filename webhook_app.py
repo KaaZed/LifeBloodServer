@@ -231,7 +231,14 @@ async def webhook(request: Request):
         loc = msg.get("location") or {}
         lat = float(loc.get("latitude"))
         lon = float(loc.get("longitude"))
-        ts = int(msg.get("date") or int(time.time()))
+        ts_source = msg.get("edit_date") or msg.get("date")
+        try:
+            ts = int(ts_source)
+        except (TypeError, ValueError):
+            try:
+                ts = int(float(ts_source))
+            except (TypeError, ValueError):
+                ts = int(time.time())
         live_period = loc.get("live_period")
         is_new_session = bool(live_period and "edit_date" not in msg)
 

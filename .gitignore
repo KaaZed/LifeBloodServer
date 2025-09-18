@@ -1,0 +1,10 @@
+# LifeBloodServer cleanup
+venv/
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+events.log
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

@@ -480,6 +480,18 @@ class LifeBloodDB:
                 """, referrer_id, ref_add)
 
             residual_after = max(0.0, total_m - steps * STEP_LENGTH_METERS)
+
+            prev_segment_start_ts = seg_start_ts
+            prev_cluster_start_ts = st["cluster_start_ts"] or prev_segment_start_ts
+
+            if residual_after > 0:
+                # Остаток метров переносим в тот же временной интервал, чтобы античит видел цельное окно.
+                new_cluster_start_ts = prev_cluster_start_ts or t
+                new_segment_start_ts = prev_segment_start_ts or t
+            else:
+                new_cluster_start_ts = t
+                new_segment_start_ts = t
+
             await c.execute(
                 """
                 UPDATE user_state
@@ -489,8 +501,8 @@ class LifeBloodDB:
                        last_lon=$3,
                        last_ts=$4,
                        residual_m=$5,
-                       cluster_start_ts=$4,
-                       segment_start_ts=$4
+                       cluster_start_ts=$6,
+                       segment_start_ts=$7
                  WHERE user_id=$1
                 """,
                 user_id,
@@ -498,6 +510,8 @@ class LifeBloodDB:
                 lon,
                 t,
                 residual_after,
+                new_cluster_start_ts,
+                new_segment_start_ts,
             )
 
             return {"counted": can_credit, "speed": speed_kmh, "dist_m": total_m, "steps": steps}

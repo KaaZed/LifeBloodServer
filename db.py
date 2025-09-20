@@ -263,7 +263,7 @@ class LifeBloodDB:
                     user_id,
                     f"gps_accuracy:{acc_val:.1f}m",
                 )
-                return {"counted": 0, "reason": "gps_accuracy", "accuracy": acc_val"}
+                return {"counted": 0, "reason": "gps_accuracy", "accuracy": acc_val}
 
             cl_lat, cl_lon = st["cluster_lat"], st["cluster_lon"]
             last_ts = st["last_ts"] or t

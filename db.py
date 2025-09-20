@@ -5,17 +5,20 @@ import math
 import asyncpg
 from datetime import datetime, timezone, timedelta
 
-DB_DSN = os.getenv("DB_DSN") or os.getenv("DATABASE_URL") or "postgresql://localhost:5432/lifeblood"
+from step_config import (
+    STEP_LENGTH_METERS,
+    CLUSTER_DISTANCE_METERS,
+    EARTH_RADIUS_METERS,
+    SPEED_MIN_KMH,
+    SPEED_MAX_KMH,
+    LBC_PER_STEP,
+    REF_LBC_PER_STEP,
+    SIGNUP_BONUS_LBC,
+    DAILY_ENERGY_STEPS,
+    GPS_MAX_ACCURACY_METERS,
+)
 
-# Константы расчёта (FREE режим / MetaCross)
-STEP_M = 0.75                      # средняя длина шага, м
-CLUSTER_M = 100.0                  # размер пятна (кластер), м
-SPEED_MIN_KMH = 3.0                # доп. скорость, км/ч
-SPEED_MAX_KMH = 8.0
-LBC_PER_STEP = 0.00042             # начисление за шаг пользователю (MetaCross spec 0.00042 LBC)
-REF_LBC_PER_STEP = 0.0001          # реф. начисление за шаг
-SIGNUP_BONUS = 25.0                # реф. бонус при регистрации, каждому
-DAILY_ENERGY_STEPS = 3000          # суточная энергия MetaCross
+DB_DSN = os.getenv("DB_DSN") or os.getenv("DATABASE_URL") or "postgresql://localhost:5432/lifeblood"
 
 def _tz3_start_of_today_utc(now_utc: datetime | None = None):
     now_utc = now_utc or datetime.now(timezone.utc)
@@ -27,7 +30,7 @@ def _tz3_start_of_today_utc(now_utc: datetime | None = None):
 
 def _haversine_m(lat1, lon1, lat2, lon2):
     # быстро и без внешних либ
-    R = 6371000.0
+    R = EARTH_RADIUS_METERS
     p = math.pi/180.0
     dlat = (lat2-lat1)*p
     dlon = (lon2-lon1)*p
@@ -53,7 +56,7 @@ class LifeBloodDB:
         await self.connect()
         async with self.pool.acquire() as c:
             # users
-            await c.execute("""
+            await c.execute(f"""
             CREATE TABLE IF NOT EXISTS users (
               user_id            BIGINT PRIMARY KEY,
               username           TEXT,
@@ -78,8 +81,8 @@ class LifeBloodDB:
               ("total_steps",        "ALTER TABLE users ADD COLUMN IF NOT EXISTS total_steps BIGINT NOT NULL DEFAULT 0"),
               ("today_lbc",          "ALTER TABLE users ADD COLUMN IF NOT EXISTS today_lbc NUMERIC(20,8) NOT NULL DEFAULT 0"),
               ("total_lbc",          "ALTER TABLE users ADD COLUMN IF NOT EXISTS total_lbc NUMERIC(20,8) NOT NULL DEFAULT 0"),
-              ("energy_max",         "ALTER TABLE users ADD COLUMN IF NOT EXISTS energy_max INTEGER NOT NULL DEFAULT 3000"),
-              ("energy_left",        "ALTER TABLE users ADD COLUMN IF NOT EXISTS energy_left INTEGER NOT NULL DEFAULT 3000"),
+              ("energy_max",         f"ALTER TABLE users ADD COLUMN IF NOT EXISTS energy_max INTEGER NOT NULL DEFAULT {DAILY_ENERGY_STEPS}"),
+              ("energy_left",        f"ALTER TABLE users ADD COLUMN IF NOT EXISTS energy_left INTEGER NOT NULL DEFAULT {DAILY_ENERGY_STEPS}"),
               ("dashboard_chat_id",  "ALTER TABLE users ADD COLUMN IF NOT EXISTS dashboard_chat_id BIGINT"),
               ("dashboard_msg_id",   "ALTER TABLE users ADD COLUMN IF NOT EXISTS dashboard_msg_id BIGINT"),
               ("reason_if_not_counted","ALTER TABLE users ADD COLUMN IF NOT EXISTS reason_if_not_counted TEXT"),
@@ -142,9 +145,9 @@ class LifeBloodDB:
                 await c.execute("UPDATE users SET referrer_id=$2, updated_at=now() WHERE user_id=$1", user_id, ref)
 
                 # бонусы по 25 LBC
-                await c.execute("UPDATE users SET total_lbc = COALESCE(total_lbc,0) + $2 WHERE user_id=$1", user_id, SIGNUP_BONUS)
+                await c.execute("UPDATE users SET total_lbc = COALESCE(total_lbc,0) + $2 WHERE user_id=$1", user_id, SIGNUP_BONUS_LBC)
                 if ref:
-                    await c.execute("UPDATE users SET total_lbc = COALESCE(total_lbc,0) + $2 WHERE user_id=$1", ref, SIGNUP_BONUS)
+                    await c.execute("UPDATE users SET total_lbc = COALESCE(total_lbc,0) + $2 WHERE user_id=$1", ref, SIGNUP_BONUS_LBC)
             # если не новый — просто актуализируем username
             else:
                 await c.execute("UPDATE users SET username=$2, updated_at=now() WHERE user_id=$1", user_id, username)
@@ -224,6 +227,12 @@ class LifeBloodDB:
         # ts -> datetime
         t = datetime.fromtimestamp(float(ts), tz=timezone.utc) if ts is not None else datetime.now(tz=timezone.utc)
 
+        acc_val: float | None
+        try:
+            acc_val = float(accuracy) if accuracy is not None else None
+        except (TypeError, ValueError):
+            acc_val = None
+
         async with self.pool.acquire() as c, c.transaction():
             # Сохраним точку
             await c.execute("""
@@ -248,13 +257,21 @@ class LifeBloodDB:
                                 user_id, "cluster_init")
                 return {"counted": 0, "reason": "cluster_init"}
 
+            if acc_val is not None and acc_val > GPS_MAX_ACCURACY_METERS:
+                await c.execute(
+                    "UPDATE users SET reason_if_not_counted=$2, updated_at=now() WHERE user_id=$1",
+                    user_id,
+                    f"gps_accuracy:{acc_val:.1f}m",
+                )
+                return {"counted": 0, "reason": "gps_accuracy", "accuracy": acc_val"}
+
             cl_lat, cl_lon = st["cluster_lat"], st["cluster_lon"]
             last_ts = st["last_ts"] or t
             cluster_start_ts = st["cluster_start_ts"] or last_ts
             dist_m = _haversine_m(cl_lat, cl_lon, lat, lon)
 
             # Пока не «набежало» 100 м — просто обновляем last_ts (время последней точки) и причину
-            if dist_m < CLUSTER_M:
+            if dist_m < CLUSTER_DISTANCE_METERS:
                 await c.execute("""
                     UPDATE user_state
                        SET last_ts=$2,
@@ -278,7 +295,7 @@ class LifeBloodDB:
                 return {"counted": 0, "reason": "speed_out_of_range", "speed": speed_kmh}
 
             # Сколько шагов из дистанции
-            steps = int(dist_m / STEP_M)
+            steps = int(dist_m / STEP_LENGTH_METERS)
             if steps <= 0:
                 await c.execute("UPDATE users SET reason_if_not_counted=$2, updated_at=now() WHERE user_id=$1",
                                 user_id, "distance<step")

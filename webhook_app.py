@@ -6,6 +6,14 @@ from dotenv import load_dotenv
 from logger import info, err
 from db import LifeBloodDB
 from tg_api import send_text, edit_text, delete_message
+from step_config import (
+    STEP_LENGTH_METERS,
+    SPEED_MIN_KMH,
+    SPEED_MAX_KMH,
+    LBC_PER_STEP,
+    REF_LBC_PER_STEP,
+    GPS_MAX_ACCURACY_METERS,
+)
 
 load_dotenv()
 
@@ -87,14 +95,17 @@ def _sig(stats: Dict[str, Any]) -> Tuple[int, int, float, float, int, int, str]:
 def _dash_text(stats: Dict[str, Any]) -> str:
     s = stats or {}
     reason = (s.get("reason_if_not_counted") or "").strip()
-    line_reason = f"\\n⛔ <i>{reason}</i>" if reason else ""
+    line_reason = f"\n⛔ <i>{reason}</i>" if reason else ""
+    energy_line = f"🔋 Энергия: <b>{int(s.get('energy_left',0))}/{int(s.get('energy_max',0))}</b>" + line_reason
     return (
-        "🩸 <b>LifeBlood — Дашборд</b>\\n"
-        f"👣 Шаги сегодня: <b>{int(s.get('today_steps',0))}</b>\\n"
-        f"💧 LBC сегодня: <b>{_fmt_lbc(s.get('today_lbc',0))}</b>\\n"
-        f"📈 Шаги всего: <b>{int(s.get('total_steps',0))}</b>\\n"
-        f"💰 LBC всего: <b>{_fmt_lbc(s.get('total_lbc',0))}</b>\\n"
-        f"🔋 Энергия: <b>{int(s.get('energy_left',0))}/{int(s.get('energy_max',0))}</b>" + line_reason
+        "🩸 <b>LifeBlood — Дашборд</b>\n"
+        f"👣 Шаги сегодня: <b>{int(s.get('today_steps',0))}</b>\n"
+        f"💧 LBC сегодня: <b>{_fmt_lbc(s.get('today_lbc',0))}</b>\n"
+        f"📈 Шаги всего: <b>{int(s.get('total_steps',0))}</b>\n"
+        f"💰 LBC всего: <b>{_fmt_lbc(s.get('total_lbc',0))}</b>\n"
+        f"{energy_line}\n"
+        f"⚙️ Нормы: шаг {STEP_LENGTH_METERS:.2f}м · скорость {SPEED_MIN_KMH:.0f}-{SPEED_MAX_KMH:.0f}км/ч · GPS ≤ {GPS_MAX_ACCURACY_METERS:.0f}м\n"
+        f"💸 Тариф: {LBC_PER_STEP:.5f} LBC/шаг (+{REF_LBC_PER_STEP:.5f} реф.)"
     )
 
 async def _send_new(user_id: int, chat_id: int, text: str, sig):

@@ -109,9 +109,11 @@ class LifeBloodDB:
               user_id     BIGINT PRIMARY KEY,
               cluster_lat DOUBLE PRECISION,
               cluster_lon DOUBLE PRECISION,
-              last_ts     TIMESTAMPTZ
+              last_ts     TIMESTAMPTZ,
+              cluster_start_ts TIMESTAMPTZ
             );
             """)
+            await c.execute("ALTER TABLE user_state ADD COLUMN IF NOT EXISTS cluster_start_ts TIMESTAMPTZ;")
 
     # === служебные ===
     async def _ensure_user(self, user_id: int, username: str | None):
@@ -230,40 +232,46 @@ class LifeBloodDB:
             """, user_id, t, lat, lon, accuracy, heading)
 
             # Текущее состояние кластера
-            st = await c.fetchrow("SELECT cluster_lat, cluster_lon, last_ts FROM user_state WHERE user_id=$1", user_id)
+            st = await c.fetchrow("SELECT cluster_lat, cluster_lon, last_ts, cluster_start_ts FROM user_state WHERE user_id=$1", user_id)
             if not st or st["cluster_lat"] is None or st["cluster_lon"] is None:
                 # Инициализация пятна
                 await c.execute("""
-                    INSERT INTO user_state (user_id, cluster_lat, cluster_lon, last_ts)
-                    VALUES ($1,$2,$3,$4)
+                    INSERT INTO user_state (user_id, cluster_lat, cluster_lon, last_ts, cluster_start_ts)
+                    VALUES ($1,$2,$3,$4,$4)
                     ON CONFLICT (user_id) DO UPDATE
                     SET cluster_lat=EXCLUDED.cluster_lat,
                         cluster_lon=EXCLUDED.cluster_lon,
-                        last_ts=EXCLUDED.last_ts
+                        last_ts=EXCLUDED.last_ts,
+                        cluster_start_ts=EXCLUDED.cluster_start_ts
                 """, user_id, lat, lon, t)
                 await c.execute("UPDATE users SET reason_if_not_counted=$2, updated_at=now() WHERE user_id=$1",
                                 user_id, "cluster_init")
                 return {"counted": 0, "reason": "cluster_init"}
 
-            cl_lat, cl_lon, last_ts = st["cluster_lat"], st["cluster_lon"], st["last_ts"] or t
+            cl_lat, cl_lon = st["cluster_lat"], st["cluster_lon"]
+            last_ts = st["last_ts"] or t
+            cluster_start_ts = st["cluster_start_ts"] or last_ts
             dist_m = _haversine_m(cl_lat, cl_lon, lat, lon)
 
-            # Пока не «набежало» 100 м — просто обновляем last_ts и причину
+            # Пока не «набежало» 100 м — просто обновляем last_ts (время последней точки) и причину
             if dist_m < CLUSTER_M:
                 await c.execute("""
-                    UPDATE user_state SET last_ts=$2 WHERE user_id=$1
+                    UPDATE user_state
+                       SET last_ts=$2,
+                           cluster_start_ts=COALESCE(cluster_start_ts, $2)
+                     WHERE user_id=$1
                 """, user_id, t)
                 await c.execute("UPDATE users SET reason_if_not_counted=$2, updated_at=now() WHERE user_id=$1",
                                 user_id, f"cluster_accumulate:{int(dist_m)}m")
                 return {"counted": 0, "reason": "cluster_accumulate"}
 
             # Проверка скорости
-            dt_sec = max(1.0, (t - (last_ts or t)).total_seconds())
+            dt_sec = max(1.0, (t - cluster_start_ts).total_seconds())
             speed_kmh = (dist_m/1000.0)/(dt_sec/3600.0)
             if speed_kmh < SPEED_MIN_KMH or speed_kmh > SPEED_MAX_KMH:
                 # Сдвигаем центр пятна, но не считаем
                 await c.execute("""
-                    UPDATE user_state SET cluster_lat=$2, cluster_lon=$3, last_ts=$4 WHERE user_id=$1
+                    UPDATE user_state SET cluster_lat=$2, cluster_lon=$3, last_ts=$4, cluster_start_ts=$4 WHERE user_id=$1
                 """, user_id, lat, lon, t)
                 await c.execute("UPDATE users SET reason_if_not_counted=$2, updated_at=now() WHERE user_id=$1",
                                 user_id, f"speed:{speed_kmh:.2f}kmh_out_of_range")
@@ -275,7 +283,7 @@ class LifeBloodDB:
                 await c.execute("UPDATE users SET reason_if_not_counted=$2, updated_at=now() WHERE user_id=$1",
                                 user_id, "distance<step")
                 # Сдвигаем пятно, чтобы не клинить
-                await c.execute("UPDATE user_state SET cluster_lat=$2, cluster_lon=$3, last_ts=$4 WHERE user_id=$1",
+                await c.execute("UPDATE user_state SET cluster_lat=$2, cluster_lon=$3, last_ts=$4, cluster_start_ts=$4 WHERE user_id=$1",
                                 user_id, lat, lon, t)
                 return {"counted": 0, "reason": "too_small"}
 
@@ -292,7 +300,7 @@ class LifeBloodDB:
                 await c.execute("UPDATE users SET reason_if_not_counted=$2, updated_at=now() WHERE user_id=$1",
                                 user_id, "no_energy")
                 # всё равно передвинем пятно
-                await c.execute("UPDATE user_state SET cluster_lat=$2, cluster_lon=$3, last_ts=$4 WHERE user_id=$1",
+                await c.execute("UPDATE user_state SET cluster_lat=$2, cluster_lon=$3, last_ts=$4, cluster_start_ts=$4 WHERE user_id=$1",
                                 user_id, lat, lon, t)
                 return {"counted": 0, "reason": "no_energy"}
 
@@ -322,7 +330,7 @@ class LifeBloodDB:
 
             # Передвигаем центр пятна
             await c.execute("""
-                UPDATE user_state SET cluster_lat=$2, cluster_lon=$3, last_ts=$4 WHERE user_id=$1
+                UPDATE user_state SET cluster_lat=$2, cluster_lon=$3, last_ts=$4, cluster_start_ts=$4 WHERE user_id=$1
             """, user_id, lat, lon, t)
 
             return {"counted": can_credit, "speed": speed_kmh, "dist_m": dist_m}

@@ -1,6 +1,7 @@
 # db.py — LifeBlood DB API bridge (PATCH-110)
 import os
 import math
+import json
 import asyncpg
 from datetime import datetime, timezone, timedelta
 
@@ -15,6 +16,9 @@ from step_config import (
     SIGNUP_BONUS_LBC,
     DAILY_ENERGY_STEPS,
     GPS_MAX_ACCURACY_METERS,
+    SMOOTHING_WINDOW_POINTS,
+    MAX_JUMP_METERS,
+    MIN_JUMP_INTERVAL_SEC,
 )
 
 DB_DSN = os.getenv("DB_DSN") or os.getenv("DATABASE_URL") or "postgresql://localhost:5432/lifeblood"
@@ -116,7 +120,8 @@ class LifeBloodDB:
               last_ts     TIMESTAMPTZ,
               residual_m  DOUBLE PRECISION,
               cluster_start_ts TIMESTAMPTZ,
-              segment_start_ts TIMESTAMPTZ
+              segment_start_ts TIMESTAMPTZ,
+              recent_points JSONB
             );
             """)
             for ddl in [
@@ -125,6 +130,7 @@ class LifeBloodDB:
                 "ALTER TABLE user_state ADD COLUMN IF NOT EXISTS last_lon DOUBLE PRECISION",
                 "ALTER TABLE user_state ADD COLUMN IF NOT EXISTS residual_m DOUBLE PRECISION",
                 "ALTER TABLE user_state ADD COLUMN IF NOT EXISTS segment_start_ts TIMESTAMPTZ",
+                "ALTER TABLE user_state ADD COLUMN IF NOT EXISTS recent_points JSONB",
             ]:
                 await c.execute(ddl + ";")
 
@@ -254,12 +260,56 @@ class LifeBloodDB:
             st = await c.fetchrow(
                 """
                 SELECT cluster_lat, cluster_lon, last_lat, last_lon, last_ts,
-                       residual_m, cluster_start_ts, segment_start_ts
+                       residual_m, cluster_start_ts, segment_start_ts, recent_points
                   FROM user_state
                  WHERE user_id=$1
                 """,
                 user_id,
             )
+            # --- окно сглаживания (anti-jitter)
+            recent_points_prev: list[dict] = []
+            if st and st.get("recent_points"):
+                rp_raw = st["recent_points"]
+                if isinstance(rp_raw, str):
+                    try:
+                        rp_raw = json.loads(rp_raw)
+                    except json.JSONDecodeError:
+                        rp_raw = []
+                if isinstance(rp_raw, list):
+                    for item in rp_raw:
+                        if not isinstance(item, dict):
+                            continue
+                        try:
+                            lat_v = float(item.get("lat"))
+                            lon_v = float(item.get("lon"))
+                            ts_raw = item.get("ts")
+                            ts_v = float(ts_raw) if ts_raw is not None else None
+                        except (TypeError, ValueError):
+                            continue
+                        recent_points_prev.append({"lat": lat_v, "lon": lon_v, "ts": ts_v})
+
+            point_ts = float(t.timestamp())
+            new_point = {"lat": float(lat), "lon": float(lon), "ts": point_ts}
+            reset_lat = new_point["lat"]
+            reset_lon = new_point["lon"]
+            recent_points_updated = recent_points_prev + [new_point]
+            if len(recent_points_updated) > SMOOTHING_WINDOW_POINTS:
+                recent_points_updated = recent_points_updated[-SMOOTHING_WINDOW_POINTS:]
+            smoothed_lat = sum(p["lat"] for p in recent_points_updated) / len(recent_points_updated)
+            smoothed_lon = sum(p["lon"] for p in recent_points_updated) / len(recent_points_updated)
+            prev_window = recent_points_updated[:-1]
+            last_lat_prev = st["last_lat"] if st and st["last_lat"] is not None else None
+            last_lon_prev = st["last_lon"] if st and st["last_lon"] is not None else None
+            if last_lat_prev is None or last_lon_prev is None:
+                if prev_window:
+                    last_lat_prev = sum(p["lat"] for p in prev_window) / len(prev_window)
+                    last_lon_prev = sum(p["lon"] for p in prev_window) / len(prev_window)
+                else:
+                    last_lat_prev = smoothed_lat
+                    last_lon_prev = smoothed_lon
+            recent_points_json = json.dumps(recent_points_updated, ensure_ascii=False)
+            single_point_json = json.dumps([new_point], ensure_ascii=False)
+
             if not st or st["last_lat"] is None or st["last_lon"] is None:
                 # Инициализация сегмента
                 await c.execute(
@@ -267,9 +317,10 @@ class LifeBloodDB:
                     INSERT INTO user_state (
                         user_id, cluster_lat, cluster_lon,
                         last_lat, last_lon, last_ts,
-                        residual_m, cluster_start_ts, segment_start_ts
+                        residual_m, cluster_start_ts, segment_start_ts,
+                        recent_points
                     )
-                    VALUES ($1,$2,$3,$2,$3,$4,0,$4,$4)
+                    VALUES ($1,$2,$3,$2,$3,$4,0,$4,$4,$5)
                     ON CONFLICT (user_id) DO UPDATE
                     SET cluster_lat=EXCLUDED.cluster_lat,
                         cluster_lon=EXCLUDED.cluster_lon,
@@ -278,12 +329,14 @@ class LifeBloodDB:
                         last_ts=EXCLUDED.last_ts,
                         residual_m=0,
                         cluster_start_ts=EXCLUDED.cluster_start_ts,
-                        segment_start_ts=EXCLUDED.segment_start_ts
+                        segment_start_ts=EXCLUDED.segment_start_ts,
+                        recent_points=EXCLUDED.recent_points
                     """,
                     user_id,
-                    lat,
-                    lon,
+                    reset_lat,
+                    reset_lon,
                     t,
+                    single_point_json,
                 )
                 await c.execute(
                     "UPDATE users SET reason_if_not_counted=$2, updated_at=now() WHERE user_id=$1",
@@ -303,13 +356,15 @@ class LifeBloodDB:
                            last_ts=$4,
                            residual_m=0,
                            cluster_start_ts=$4,
-                           segment_start_ts=$4
+                           segment_start_ts=$4,
+                           recent_points=$5
                      WHERE user_id=$1
                     """,
                     user_id,
-                    lat,
-                    lon,
+                    reset_lat,
+                    reset_lon,
                     t,
+                    single_point_json,
                 )
                 await c.execute(
                     "UPDATE users SET reason_if_not_counted=$2, updated_at=now() WHERE user_id=$1",
@@ -318,8 +373,8 @@ class LifeBloodDB:
                 )
                 return {"counted": 0, "reason": "gps_accuracy", "accuracy": acc_val}
 
-            last_lat = st["last_lat"] if st["last_lat"] is not None else st["cluster_lat"]
-            last_lon = st["last_lon"] if st["last_lon"] is not None else st["cluster_lon"]
+            last_lat = last_lat_prev if last_lat_prev is not None else st["cluster_lat"]
+            last_lon = last_lon_prev if last_lon_prev is not None else st["cluster_lon"]
             seg_start_ts = (
                 st["segment_start_ts"]
                 or st["cluster_start_ts"]
@@ -327,6 +382,7 @@ class LifeBloodDB:
                 or t
             )
             residual_prev = float(st["residual_m"] or 0.0)
+            last_ts_prev = st["last_ts"] if st else None
 
             if last_lat is None or last_lon is None:
                 # fallback safety: реинициализация
@@ -340,13 +396,15 @@ class LifeBloodDB:
                            last_ts=$4,
                            residual_m=0,
                            cluster_start_ts=$4,
-                           segment_start_ts=$4
+                           segment_start_ts=$4,
+                           recent_points=$5
                      WHERE user_id=$1
                     """,
                     user_id,
-                    lat,
-                    lon,
+                    reset_lat,
+                    reset_lon,
                     t,
+                    single_point_json,
                 )
                 await c.execute(
                     "UPDATE users SET reason_if_not_counted=$2, updated_at=now() WHERE user_id=$1",
@@ -355,7 +413,49 @@ class LifeBloodDB:
                 )
                 return {"counted": 0, "reason": "segment_reinit"}
 
-            segment_dist = _haversine_m(last_lat, last_lon, lat, lon)
+            segment_dist = _haversine_m(last_lat, last_lon, smoothed_lat, smoothed_lon)
+            dt_since_last = None
+            if last_ts_prev:
+                try:
+                    dt_since_last = abs((t - last_ts_prev).total_seconds())
+                except Exception:
+                    dt_since_last = None
+            if (
+                dt_since_last is not None
+                and dt_since_last < float(MIN_JUMP_INTERVAL_SEC)
+                and segment_dist > MAX_JUMP_METERS
+            ):
+                await c.execute(
+                    """
+                    UPDATE user_state
+                       SET cluster_lat=$2,
+                           cluster_lon=$3,
+                           last_lat=$2,
+                           last_lon=$3,
+                           last_ts=$4,
+                           residual_m=0,
+                           cluster_start_ts=$4,
+                           segment_start_ts=$4,
+                           recent_points=$5
+                     WHERE user_id=$1
+                    """,
+                    user_id,
+                    reset_lat,
+                    reset_lon,
+                    t,
+                    single_point_json,
+                )
+                await c.execute(
+                    "UPDATE users SET reason_if_not_counted=$2, updated_at=now() WHERE user_id=$1",
+                    user_id,
+                    "jump",
+                )
+                return {
+                    "counted": 0,
+                    "reason": "jump",
+                    "jump_m": segment_dist,
+                    "jump_dt": dt_since_last,
+                }
             total_m = residual_prev + segment_dist
 
             if total_m < CLUSTER_DISTANCE_METERS:
@@ -371,17 +471,19 @@ class LifeBloodDB:
                            cluster_lat=COALESCE(cluster_lat, $6),
                            cluster_lon=COALESCE(cluster_lon, $7),
                            cluster_start_ts=$8,
-                           segment_start_ts=$8
+                           segment_start_ts=$8,
+                           recent_points=$9
                      WHERE user_id=$1
                     """,
                     user_id,
-                    lat,
-                    lon,
+                    smoothed_lat,
+                    smoothed_lon,
                     t,
                     total_m,
                     cluster_lat,
                     cluster_lon,
                     seg_start_ts,
+                    recent_points_json,
                 )
                 await c.execute(
                     "UPDATE users SET reason_if_not_counted=$2, updated_at=now() WHERE user_id=$1",
@@ -403,13 +505,15 @@ class LifeBloodDB:
                            last_ts=$4,
                            residual_m=0,
                            cluster_start_ts=$4,
-                           segment_start_ts=$4
+                           segment_start_ts=$4,
+                           recent_points=$5
                      WHERE user_id=$1
                     """,
                     user_id,
-                    lat,
-                    lon,
+                    reset_lat,
+                    reset_lon,
                     t,
+                    single_point_json,
                 )
                 await c.execute(
                     "UPDATE users SET reason_if_not_counted=$2, updated_at=now() WHERE user_id=$1",
@@ -440,13 +544,15 @@ class LifeBloodDB:
                            last_ts=$4,
                            residual_m=0,
                            cluster_start_ts=$4,
-                           segment_start_ts=$4
+                           segment_start_ts=$4,
+                           recent_points=$5
                      WHERE user_id=$1
                     """,
                     user_id,
-                    lat,
-                    lon,
+                    reset_lat,
+                    reset_lon,
                     t,
+                    single_point_json,
                 )
                 await c.execute(
                     "UPDATE users SET reason_if_not_counted=$2, updated_at=now() WHERE user_id=$1",
@@ -497,21 +603,25 @@ class LifeBloodDB:
                 UPDATE user_state
                    SET cluster_lat=$2,
                        cluster_lon=$3,
-                       last_lat=$2,
-                       last_lon=$3,
-                       last_ts=$4,
-                       residual_m=$5,
-                       cluster_start_ts=$6,
-                       segment_start_ts=$7
+                       last_lat=$4,
+                       last_lon=$5,
+                       last_ts=$6,
+                       residual_m=$7,
+                       cluster_start_ts=$8,
+                       segment_start_ts=$9,
+                       recent_points=$10
                  WHERE user_id=$1
                 """,
                 user_id,
-                lat,
-                lon,
+                smoothed_lat,
+                smoothed_lon,
+                smoothed_lat,
+                smoothed_lon,
                 t,
                 residual_after,
                 new_cluster_start_ts,
                 new_segment_start_ts,
+                recent_points_json,
             )
 
             return {"counted": can_credit, "speed": speed_kmh, "dist_m": total_m, "steps": steps}

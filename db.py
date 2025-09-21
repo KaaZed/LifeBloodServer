@@ -23,6 +23,7 @@ from step_config import (
 
 DB_DSN = os.getenv("DB_DSN") or os.getenv("DATABASE_URL") or "postgresql://localhost:5432/lifeblood"
 
+
 def _tz3_start_of_today_utc(now_utc: datetime | None = None):
     now_utc = now_utc or datetime.now(timezone.utc)
     tz3 = timezone(timedelta(hours=3))
@@ -40,6 +41,7 @@ def _haversine_m(lat1, lon1, lat2, lon2):
     a = (math.sin(dlat/2)**2 +
          math.cos(lat1*p)*math.cos(lat2*p)*math.sin(dlon/2)**2)
     return 2*R*math.asin(math.sqrt(a))
+
 
 class LifeBloodDB:
     def __init__(self, dsn: str | None = None):
@@ -86,6 +88,7 @@ class LifeBloodDB:
               ("total_lbc",          "ALTER TABLE users ADD COLUMN IF NOT EXISTS total_lbc NUMERIC(20,8) NOT NULL DEFAULT 0"),
               ("energy_max",         f"ALTER TABLE users ADD COLUMN IF NOT EXISTS energy_max INTEGER NOT NULL DEFAULT {DAILY_ENERGY_STEPS}"),
               ("energy_left",        f"ALTER TABLE users ADD COLUMN IF NOT EXISTS energy_left INTEGER NOT NULL DEFAULT {DAILY_ENERGY_STEPS}"),
+              ("energy_reset_at",    "ALTER TABLE users ADD COLUMN IF NOT EXISTS energy_reset_at TIMESTAMPTZ"),
               ("dashboard_chat_id",  "ALTER TABLE users ADD COLUMN IF NOT EXISTS dashboard_chat_id BIGINT"),
               ("dashboard_msg_id",   "ALTER TABLE users ADD COLUMN IF NOT EXISTS dashboard_msg_id BIGINT"),
               ("reason_if_not_counted","ALTER TABLE users ADD COLUMN IF NOT EXISTS reason_if_not_counted TEXT"),
@@ -93,6 +96,12 @@ class LifeBloodDB:
               ("created_at",         "ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now()"),
             ]:
                 await c.execute(ddl + ";")
+
+            await c.execute("""
+                UPDATE users
+                   SET energy_reset_at = COALESCE(energy_reset_at, updated_at, created_at, now())
+                 WHERE energy_reset_at IS NULL
+            """)
 
             # точки гео
             await c.execute("""
@@ -143,8 +152,8 @@ class LifeBloodDB:
                 await c.execute("UPDATE users SET username=$2, updated_at=now() WHERE user_id=$1", user_id, username)
                 return False
             await c.execute("""
-                INSERT INTO users (user_id, username, energy_max, energy_left)
-                VALUES ($1, $2, $3, $3)
+                INSERT INTO users (user_id, username, energy_max, energy_left, energy_reset_at)
+                VALUES ($1, $2, $3, $3, now())
             """, user_id, username, DAILY_ENERGY_STEPS)
             return True
 
@@ -218,8 +227,13 @@ class LifeBloodDB:
         async with self.pool.acquire() as c:
             await c.execute("""
                 UPDATE users
-                   SET today_steps=0, today_lbc=0, energy_left=energy_max, updated_at=now()
-                 WHERE user_id=$1 AND updated_at < $2
+                   SET today_steps=0,
+                       today_lbc=0,
+                       energy_left=energy_max,
+                       energy_reset_at=now(),
+                       updated_at=now()
+                 WHERE user_id=$1
+                   AND (energy_reset_at IS NULL OR energy_reset_at < $2)
             """, user_id, start_utc)
 
     async def process_location(

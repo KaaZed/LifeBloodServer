@@ -89,7 +89,7 @@ def _sig(stats: Dict[str, Any]) -> Tuple[str, ...]:
     total_lbc = _fmt_lbc(s.get("total_lbc"))
     energy_left = max(_fi(s.get("energy_left")), 0)
     energy_max_raw = max(_fi(s.get("energy_max")), 0)
-    energy_max = energy_max_raw or int(DAILY_ENERGY_STEPS))
+    energy_max = energy_max_raw or int(DAILY_ENERGY_STEPS)
     reason = (s.get("reason_if_not_counted") or "").strip()
     return (
         today_steps,

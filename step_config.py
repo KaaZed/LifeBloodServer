@@ -3,7 +3,7 @@ from typing import Final
 
 # Base geometry
 STEP_LENGTH_METERS: Final[float] = 0.75  # см. Documentation/EN_WP_1_extracted.txt строки 70-79 (step length 0.75 м)
-CLUSTER_DISTANCE_METERS: Final[float] = 100.0  # см. Documentation/EN_WP_1_extracted.txt строки 528-539 + техплан PATCH-110 (кластеры по 100 м)
+CLUSTER_DISTANCE_METERS: Final[float] = 30.0  # см. Documentation/EN_WP_1_extracted.txt строки 528-539 + техплан PATCH-110 (кластеры по 100 м)
 EARTH_RADIUS_METERS: Final[float] = 6_371_000.0  # WGS84 усреднённый радиус Земли для хаверсина
 
 # Activity filters

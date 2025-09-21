@@ -13,7 +13,6 @@ from step_config import (
     LBC_PER_STEP,
     REF_LBC_PER_STEP,
     GPS_MAX_ACCURACY_METERS,
-    DAILY_ENERGY_STEPS,
 )
 
 load_dotenv()
@@ -81,64 +80,32 @@ def _ff(value: Any) -> float:
     except (TypeError, ValueError):
         return 0.0
 
-def _sig(stats: Dict[str, Any]) -> Tuple[str, ...]:
+def _sig(stats: Dict[str, Any]) -> Tuple[int, int, float, float, int, int, str]:
     s = stats or {}
-    today_steps = str(_fi(s.get("today_steps")))
-    total_steps = str(_fi(s.get("total_steps")))
-    today_lbc = _fmt_lbc(s.get("today_lbc"))
-    total_lbc = _fmt_lbc(s.get("total_lbc"))
-    energy_left = max(_fi(s.get("energy_left")), 0)
-    energy_max_raw = max(_fi(s.get("energy_max")), 0)
-    energy_max = energy_max_raw or int(DAILY_ENERGY_STEPS))
-    reason = (s.get("reason_if_not_counted") or "").strip()
     return (
-        today_steps,
-        total_steps,
-        today_lbc,
-        total_lbc,
-        str(energy_left),
-        str(energy_max),
-        reason,
-        f"{STEP_LENGTH_METERS:.2f}",
-        f"{SPEED_MIN_KMH:.2f}",
-        f"{SPEED_MAX_KMH:.2f}",
-        f"{GPS_MAX_ACCURACY_METERS:.2f}",
-        f"{LBC_PER_STEP:.5f}",
-        f"{REF_LBC_PER_STEP:.5f}",
-        str(int(DAILY_ENERGY_STEPS)),
+        _fi(s.get("today_steps")),
+        _fi(s.get("total_steps")),
+        _ff(s.get("today_lbc")),
+        _ff(s.get("total_lbc")),
+        _fi(s.get("energy_left")),
+        _fi(s.get("energy_max")),
+        (s.get("reason_if_not_counted") or "").strip(),
     )
 
 def _dash_text(stats: Dict[str, Any]) -> str:
     s = stats or {}
-    today_steps = _fi(s.get("today_steps"))
-    total_steps = _fi(s.get("total_steps"))
-    today_lbc = _fmt_lbc(s.get("today_lbc"))
-    total_lbc = _fmt_lbc(s.get("total_lbc"))
-    energy_left = max(_fi(s.get("energy_left")), 0)
-    energy_max_raw = max(_fi(s.get("energy_max")), 0)
-    energy_max = energy_max_raw or int(DAILY_ENERGY_STEPS)
     reason = (s.get("reason_if_not_counted") or "").strip()
-
-    reason_line = f"\n⛔ <i>{reason}</i>" if reason else ""
-    energy_line = f"🔋 Энергия: <b>{energy_left}/{energy_max}</b> шагов" + reason_line
-    norms_line = (
-        "⚙️ Нормы: "
-        f"шаг {STEP_LENGTH_METERS:.2f}м · "
-        f"скорость {SPEED_MIN_KMH:.0f}-{SPEED_MAX_KMH:.0f}км/ч · "
-        f"GPS ≤ {GPS_MAX_ACCURACY_METERS:.0f}м · "
-        f"лимит {int(DAILY_ENERGY_STEPS)} шагов/день"
-    )
-    tariff_line = f"💸 Тариф: {LBC_PER_STEP:.5f} LBC/шаг (+{REF_LBC_PER_STEP:.5f} реф.)"
-
+    line_reason = f"\n⛔ <i>{reason}</i>" if reason else ""
+    energy_line = f"🔋 Энергия: <b>{int(s.get('energy_left',0))}/{int(s.get('energy_max',0))}</b>" + line_reason
     return (
         "🩸 <b>LifeBlood — Дашборд</b>\n"
-        f"👣 Шаги сегодня: <b>{today_steps}</b>\n"
-        f"💧 LBC сегодня: <b>{today_lbc}</b>\n"
-        f"📈 Шаги всего: <b>{total_steps}</b>\n"
-        f"💰 LBC всего: <b>{total_lbc}</b>\n"
+        f"👣 Шаги сегодня: <b>{int(s.get('today_steps',0))}</b>\n"
+        f"💧 LBC сегодня: <b>{_fmt_lbc(s.get('today_lbc',0))}</b>\n"
+        f"📈 Шаги всего: <b>{int(s.get('total_steps',0))}</b>\n"
+        f"💰 LBC всего: <b>{_fmt_lbc(s.get('total_lbc',0))}</b>\n"
         f"{energy_line}\n"
-        f"{norms_line}\n"
-        f"{tariff_line}"
+        f"⚙️ Нормы: шаг {STEP_LENGTH_METERS:.2f}м · скорость {SPEED_MIN_KMH:.0f}-{SPEED_MAX_KMH:.0f}км/ч · GPS ≤ {GPS_MAX_ACCURACY_METERS:.0f}м\n"
+        f"💸 Тариф: {LBC_PER_STEP:.5f} LBC/шаг (+{REF_LBC_PER_STEP:.5f} реф.)"
     )
 
 async def _send_new(user_id: int, chat_id: int, text: str, sig):

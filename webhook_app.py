@@ -28,21 +28,43 @@ db = LifeBloodDB(DSN) if DSN else None
 
 @app.on_event("startup")
 async def _startup():
+    token_present = bool(os.getenv("TELEGRAM_BOT_TOKEN"))
+    dsn_present = bool(os.getenv("DB_DSN"))
+
     if not db:
         err("[db] DSN missing")
-        return
-    try:
-        await db.connect()
-        if hasattr(db, "ensure_schema"):
-            await db.ensure_schema()
-        info("[startup] ok")
-    except Exception as e:
-        err(f"[startup] db connect error: {e}")
-    finally:
-        token_present = bool(os.getenv("TELEGRAM_BOT_TOKEN"))
-        dsn_present = bool(os.getenv("DB_DSN"))
         info(f"[startup] TELEGRAM_BOT_TOKEN present: {token_present}")
         info(f"[startup] DB_DSN present: {dsn_present}")
+        return
+
+    try:
+        max_attempts = int(os.getenv("DB_CONNECT_RETRIES", "10"))
+    except ValueError:
+        max_attempts = 10
+    max_attempts = max(1, max_attempts)
+
+    try:
+        retry_delay = float(os.getenv("DB_CONNECT_RETRY_DELAY_SEC", "3"))
+    except ValueError:
+        retry_delay = 3.0
+    retry_delay = max(0.5, retry_delay)
+
+    for attempt in range(1, max_attempts + 1):
+        try:
+            await db.connect()
+            if hasattr(db, "ensure_schema"):
+                await db.ensure_schema()
+            info(f"[startup] db ready (attempt {attempt}/{max_attempts})")
+            break
+        except Exception as e:
+            err(f"[startup] db connect error (attempt {attempt}/{max_attempts}): {e}")
+            if attempt == max_attempts:
+                err("[startup] giving up on initial db connect; will retry lazily on demand")
+                break
+            await asyncio.sleep(retry_delay)
+
+    info(f"[startup] TELEGRAM_BOT_TOKEN present: {token_present}")
+    info(f"[startup] DB_DSN present: {dsn_present}")
 
 @app.get("/ping")
 async def ping():
@@ -89,7 +111,7 @@ def _sig(stats: Dict[str, Any]) -> Tuple[str, ...]:
     total_lbc = _fmt_lbc(s.get("total_lbc"))
     energy_left = max(_fi(s.get("energy_left")), 0)
     energy_max_raw = max(_fi(s.get("energy_max")), 0)
-    energy_max = energy_max_raw or int(DAILY_ENERGY_STEPS)
+    energy_max = energy_max_raw or int(DAILY_ENERGY_STEPS))
     reason = (s.get("reason_if_not_counted") or "").strip()
     return (
         today_steps,
@@ -131,14 +153,11 @@ def _dash_text(stats: Dict[str, Any]) -> str:
     tariff_line = f"💸 Тариф: {LBC_PER_STEP:.5f} LBC/шаг (+{REF_LBC_PER_STEP:.5f} реф.)"
 
     return (
-        "🩸 <b>LifeBlood — Дашборд</b>\n"
-        f"👣 Шаги сегодня: <b>{today_steps}</b>\n"
-        f"💧 LBC сегодня: <b>{today_lbc}</b>\n"
-        f"📈 Шаги всего: <b>{total_steps}</b>\n"
-        f"💰 LBC всего: <b>{total_lbc}</b>\n"
-        f"{energy_line}\n"
-        f"{norms_line}\n"
-        f"{tariff_line}"
+        f"👣 Шаги сегодня: <b>{today_steps}</b>"
+        f"🩸 LBC сегодня: <b>{today_lbc}</b>"
+        f"📈 Шаги всего: <b>{total_steps}</b>"
+        f"💰 LBC всего: <b>{total_lbc}</b>"
+        f"{energy_line}"
     )
 
 async def _send_new(user_id: int, chat_id: int, text: str, sig):
@@ -168,7 +187,6 @@ async def _ensure_dashboard(user_id: int, chat_id: int, stats: Dict[str, Any], i
     state_chat_id = int(state.get("chat_id") or chat_id)
 
     if is_new_session:
-        # удалить старый дашборд (best effort)
         if msg_id:
             try:
                 ok, _ = await delete_message(state_chat_id, msg_id)
@@ -186,13 +204,11 @@ async def _ensure_dashboard(user_id: int, chat_id: int, stats: Dict[str, Any], i
         await _send_new(user_id, chat_id, text, sig_curr)
         return
 
-    # обычные апдейты
     if _now() - last_ts < _DASH_THROTTLE:
         info(f"[dash] throttle user:{user_id}")
         return
 
     if not msg_id:
-        # пробуем восстановить из БД
         if db and hasattr(db, "get_dashboard_target"):
             try:
                 db_chat, db_msg = await db.get_dashboard_target(user_id)
@@ -288,11 +304,17 @@ async def webhook(request: Request):
 
         try:
             if db and hasattr(db, "process_location"):
-                # ВАЖНО: передаём epoch ts (int), чтобы не было конфликта типов в БД
-                await db.process_location(user_id, username, ts=ts, lat=lat, lon=lon,
-                                          accuracy=loc.get("horizontal_accuracy"),
-                                          heading=loc.get("heading"), live_period=live_period,
-                                          chat_id=chat_id)
+                await db.process_location(
+                    user_id,
+                    username,
+                    ts=ts,
+                    lat=lat,
+                    lon=lon,
+                    accuracy=loc.get("horizontal_accuracy"),
+                    heading=loc.get("heading"),
+                    live_period=live_period,
+                    chat_id=chat_id,
+                )
                 stats = await db.stats(user_id) if hasattr(db, "stats") else {}
             else:
                 stats = {}

@@ -8,14 +8,17 @@ services:
     env_file:
       - .env
     environment:
-      - DB_DSN=${DB_DSN:-postgresql://lifeblood:lifeblood@db:5432/lifeblood}
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - BOT_USERNAME=${BOT_USERNAME}
-      - BOT_WEBHOOK_DOMAIN=${BOT_WEBHOOK_DOMAIN}
+      DB_DSN: ${DB_DSN_DOCKER:-postgresql://lifeblood:lifeblood@db:5432/lifeblood}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      BOT_USERNAME: ${BOT_USERNAME}
+      BOT_WEBHOOK_DOMAIN: ${BOT_WEBHOOK_DOMAIN}
+      WEBHOOK_URL: ${WEBHOOK_URL}
+      DOMAIN: ${DOMAIN}
     ports:
       - "8000:8000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   db:
     image: postgres:15-alpine
@@ -29,6 +32,11 @@ services:
       - db_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-lifeblood} -d ${POSTGRES_DB:-lifeblood}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
 volumes:
   db_data:

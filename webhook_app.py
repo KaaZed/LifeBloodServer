@@ -141,25 +141,25 @@ def _dash_text(stats: Dict[str, Any]) -> str:
     energy_max = energy_max_raw or int(DAILY_ENERGY_STEPS)
     reason = (s.get("reason_if_not_counted") or "").strip()
 
-    reason_line = f"\n⛔ <i>{reason}</i>" if reason else ""
-    energy_line = f"🔋 Энергия: <b>{energy_left}/{energy_max}</b> шагов" + reason_line
-    norms_line = (
-        "⚙️ Нормы: "
-        f"шаг {STEP_LENGTH_METERS:.2f}м · "
-        f"скорость {SPEED_MIN_KMH:.0f}-{SPEED_MAX_KMH:.0f}км/ч · "
-        f"GPS ≤ {GPS_MAX_ACCURACY_METERS:.0f}м · "
-        f"лимит {int(DAILY_ENERGY_STEPS)} шагов/день"
-    )
-    tariff_line = f"💸 Тариф: {LBC_PER_STEP:.5f} LBC/шаг (+{REF_LBC_PER_STEP:.5f} реф.)"
-
-    return (
-        "🩸 <b>LifeBlood</b>"
-        f"👣 Шаги сегодня: <b>{today_steps}</b>"
-        f"💧 LBC сегодня: <b>{today_lbc}</b>"
-        f"📈 Шаги всего: <b>{total_steps}</b>"
-        f"💰 LBC всего: <b>{total_lbc}</b>"
-        f"{energy_line}"
-    )
+    lines = [
+        "🩸 <b>LifeBlood</b>",
+        f"👣 Шаги сегодня: <b>{today_steps}</b>",
+        f"💧 LBC сегодня: <b>{today_lbc}</b>",
+        f"📈 Шаги всего: <b>{total_steps}</b>",
+        f"💰 LBC всего: <b>{total_lbc}</b>",
+        f"🔋 Энергия: <b>{energy_left}/{energy_max}</b> шагов",
+        (
+            "⚙️ Нормы: "
+            f"шаг {STEP_LENGTH_METERS:.2f}м · "
+            f"скорость {SPEED_MIN_KMH:.0f}-{SPEED_MAX_KMH:.0f}км/ч · "
+            f"GPS ≤ {GPS_MAX_ACCURACY_METERS:.0f}м · "
+            f"лимит {int(DAILY_ENERGY_STEPS)} шагов/день"
+        ),
+        f"💸 Тариф: {LBC_PER_STEP:.5f} LBC/шаг (+{REF_LBC_PER_STEP:.5f} реф.)",
+    ]
+    if reason:
+        lines.append(f"⛔ <i>{reason}</i>")
+    return "\n".join(lines)
 
 async def _send_new(user_id: int, chat_id: int, text: str, sig):
     ok, resp = await send_text(chat_id, text, disable_web_page_preview=True)
@@ -204,3 +204,153 @@ async def _ensure_dashboard(user_id: int, chat_id: int, stats: Dict[str, Any], i
                 err(f"[dash] delete(db) exception: {e}")
         await _send_new(user_id, chat_id, text, sig_curr)
         return
+
+    if _now() - last_ts < _DASH_THROTTLE:
+        info(f"[dash] throttle user:{user_id}")
+        return
+
+    if not msg_id:
+        if db and hasattr(db, "get_dashboard_target"):
+            try:
+                db_chat, db_msg = await db.get_dashboard_target(user_id)
+                if db_msg:
+                    msg_id = int(db_msg)
+                    state_chat_id = int(db_chat or chat_id)
+                    _DASH[user_id] = {
+                        "msg_id": msg_id,
+                        "chat_id": state_chat_id,
+                        "last_ts": 0.0,
+                        "sig": last_sig,
+                    }
+                    info(f"[dash] restored msg_id={msg_id} from DB")
+            except Exception as e:
+                err(f"[dash] restore db error: {e}")
+        if not msg_id:
+            await _send_new(user_id, chat_id, text, sig_curr)
+            return
+
+    if last_sig == sig_curr:
+        _DASH[user_id] = {
+            "msg_id": msg_id,
+            "chat_id": state_chat_id,
+            "last_ts": _now(),
+            "sig": sig_curr,
+        }
+        info("[dash] no content change → skip edit")
+        return
+
+    ok, resp = await edit_text(state_chat_id, msg_id, text, disable_web_page_preview=True)
+    if ok:
+        _DASH[user_id] = {
+            "msg_id": msg_id,
+            "chat_id": state_chat_id,
+            "last_ts": _now(),
+            "sig": sig_curr,
+        }
+        return
+
+    desc = str((resp or {}).get("description", "")).lower()
+    code = (resp or {}).get("error_code")
+    if code == 400 and "message to edit not found" in desc:
+        _DASH[user_id] = {
+            "msg_id": None,
+            "chat_id": state_chat_id,
+            "last_ts": _now(),
+            "sig": sig_curr,
+        }
+        info("[dash] msg not found → wait new session")
+        return
+    if code == 400 and "not modified" in desc:
+        _DASH[user_id] = {
+            "msg_id": msg_id,
+            "chat_id": state_chat_id,
+            "last_ts": _now(),
+            "sig": sig_curr,
+        }
+        info("[dash] edit not-modified → noop")
+        return
+
+    err(f"[dash] edit failed: {resp}")
+
+def _extract(d: Dict[str, Any], path, default=None):
+    cur = d
+    for k in path:
+        if isinstance(cur, dict) and k in cur:
+            cur = cur[k]
+        else:
+            return default
+    return cur
+
+@app.post("/webhook")
+async def webhook(request: Request):
+    try:
+        update = await request.json()
+    except Exception:
+        body = await request.body()
+        try:
+            update = json.loads(body.decode("utf-8"))
+        except Exception as e:
+            err(f"[webhook] bad json: {e}")
+            return JSONResponse({"ok": False})
+
+    msg = update.get("edited_message") or update.get("message") or {}
+    if not msg:
+        return JSONResponse({"ok": True})
+
+    chat_id = int(_extract(msg, ["chat", "id"], 0) or 0)
+    user_id = int(_extract(msg, ["from", "id"], 0) or 0)
+    username = _extract(msg, ["from", "username"])
+
+    text = (msg.get("text") or "").strip()
+    if text.startswith("/start"):
+        ref = None
+        parts = text.split(maxsplit=1)
+        if len(parts) == 2 and parts[1].isdigit():
+            ref = int(parts[1])
+        try:
+            if db and hasattr(db, "register_user"):
+                await db.register_user(user_id, username, referrer_id=ref)
+            await send_text(chat_id, "Привет! Отправь Live Location, и я начну учитывать шаги.")
+            info("[webhook] /start ok")
+        except Exception as e:
+            err(f"[webhook] /start exception: {e}")
+        return JSONResponse({"ok": True})
+
+    if "location" in msg:
+        loc = msg.get("location") or {}
+        lat = float(loc.get("latitude"))
+        lon = float(loc.get("longitude"))
+        ts_source = msg.get("edit_date") or msg.get("date")
+        try:
+            ts = int(ts_source)
+        except (TypeError, ValueError):
+            try:
+                ts = int(float(ts_source))
+            except (TypeError, ValueError):
+                ts = int(time.time())
+        live_period = loc.get("live_period")
+        is_new_session = bool(live_period and "edit_date" not in msg)
+
+        try:
+            if db and hasattr(db, "process_location"):
+                await db.process_location(
+                    user_id,
+                    username,
+                    ts=ts,
+                    lat=lat,
+                    lon=lon,
+                    accuracy=loc.get("horizontal_accuracy"),
+                    heading=loc.get("heading"),
+                    live_period=live_period,
+                    chat_id=chat_id,
+                )
+                stats = await db.stats(user_id) if hasattr(db, "stats") else {}
+            else:
+                stats = {}
+            await _ensure_dashboard(user_id, chat_id, stats or {}, is_new_session)
+            info("[webhook] location ok")
+        except Exception as e:
+            err(f"[webhook] location exception: {e}")
+        return JSONResponse({"ok": True})
+
+    return JSONResponse({"ok": True})

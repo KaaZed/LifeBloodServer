@@ -1,0 +1,6 @@
+● lifeblood.service - LifeBlood Telegram bot
+     Loaded: loaded (]8;;file://cv5007430.novalocal/etc/systemd/system/lifeblood.service/etc/systemd/system/lifeblood.service]8;;; [0;1;32menabled[0m; preset: [0;1;32menabled[0m)
+     Active: activating (auto-restart) (Result: exit-code) since Sun 2025-09-28 20:08:28 MSK; 4s ago
+    Process: 900539 ExecStart=/root/LifeBloodServer/.venv/bin/uvicorn webhook_app:app --host 0.0.0.0 --port 8000 [0;1;31m(code=exited, status=1/FAILURE)[0m
+   Main PID: 900539 (code=exited, status=1/FAILURE)
+        CPU: 690ms

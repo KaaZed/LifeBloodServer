@@ -1,0 +1,176 @@
+diff --git a/db.py b/db.py
+--- a/db.py
++++ b/db.py
+@@
+-DB_DSN = os.getenv("DB_DSN") or os.getenv("DATABASE_URL") or "postgresql://localhost:5432/lifeblood"
++DB_DSN = os.getenv("DB_DSN") or os.getenv("DATABASE_URL") or "postgresql://localhost:5432/lifeblood"
++
++BASE_OFFCHAIN_NFT_SLUG = "metacross_base_offchain"
++BASE_OFFCHAIN_NFT_TITLE = "MetaCross базовый офчейн"
++BASE_OFFCHAIN_NFT_KIND = "offchain"
++BASE_OFFCHAIN_NFT_METADATA = {
++    "note": "Базовый офчейн MetaCross NFT; параметры редактируются централизованно в step_config.py.",
++    "source": "Documentation/EN_WP_1_extracted.txt строки 478-543",
++}
+@@
+-            base_energy_units = _format_decimal(BASE_METACROSS_ENERGY_UNITS, 2)
+-            base_lbc_per_step = _format_decimal(BASE_METACROSS_LBC_PER_STEP, 8)
+-            base_speed_min = _format_decimal(BASE_METACROSS_SPEED_MIN_KMH, 2)
+-            base_speed_max = _format_decimal(BASE_METACROSS_SPEED_MAX_KMH, 2)
+-            steps_per_unit = int(ENERGY_STEPS_PER_UNIT)
++            base_energy_units = _format_decimal(BASE_METACROSS_ENERGY_UNITS, 2)
++            base_lbc_per_step = _format_decimal(BASE_METACROSS_LBC_PER_STEP, 8)
++            base_speed_min = _format_decimal(BASE_METACROSS_SPEED_MIN_KMH, 2)
++            base_speed_max = _format_decimal(BASE_METACROSS_SPEED_MAX_KMH, 2)
++            steps_per_unit = int(ENERGY_STEPS_PER_UNIT)
++            base_energy_units_dec = Decimal(base_energy_units)
++            base_lbc_per_step_dec = Decimal(base_lbc_per_step)
++            base_speed_min_dec = Decimal(base_speed_min)
++            base_speed_max_dec = Decimal(base_speed_max)
++            base_energy_limit_steps = int(base_energy_units_dec * steps_per_unit)
++            base_template_metadata_json = json.dumps(
++                BASE_OFFCHAIN_NFT_METADATA,
++                ensure_ascii=False,
++            )
+@@
+             await c.execute(
+                 "CREATE UNIQUE INDEX IF NOT EXISTS idx_user_nfts_user_active ON user_nfts(user_id) WHERE is_active;"
+             )
+             await c.execute(
+                 "CREATE UNIQUE INDEX IF NOT EXISTS idx_user_nfts_token ON user_nfts(user_id, template_id, token_id);"
+             )
++            base_template_row = await c.fetchrow(
++                """
++                INSERT INTO nft_templates (
++                    slug,
++                    title,
++                    kind,
++                    is_onchain,
++                    ton_collection,
++                    energy_units,
++                    steps_per_unit,
++                    lbc_per_step,
++                    speed_min_kmh,
++                    speed_max_kmh,
++                    metadata
++                )
++                VALUES ($1, $2, $3, FALSE, NULL, $4, $5, $6, $7, $8, $9::jsonb)
++                ON CONFLICT (slug) DO UPDATE
++                SET title = EXCLUDED.title,
++                    kind = EXCLUDED.kind,
++                    is_onchain = EXCLUDED.is_onchain,
++                    ton_collection = EXCLUDED.ton_collection,
++                    energy_units = EXCLUDED.energy_units,
++                    steps_per_unit = EXCLUDED.steps_per_unit,
++                    lbc_per_step = EXCLUDED.lbc_per_step,
++                    speed_min_kmh = EXCLUDED.speed_min_kmh,
++                    speed_max_kmh = EXCLUDED.speed_max_kmh,
++                    metadata = EXCLUDED.metadata,
++                    updated_at = now()
++                RETURNING id
++                """,
++                BASE_OFFCHAIN_NFT_SLUG,
++                BASE_OFFCHAIN_NFT_TITLE,
++                BASE_OFFCHAIN_NFT_KIND,
++                base_energy_units_dec,
++                steps_per_unit,
++                base_lbc_per_step_dec,
++                base_speed_min_dec,
++                base_speed_max_dec,
++                base_template_metadata_json,
++            )
++            base_template_id = base_template_row["id"]
++            await c.execute(
++                """
++                UPDATE users
++                   SET active_nft_template_id = $1,
++                       energy_units = $2,
++                       steps_per_unit = $3,
++                       lbc_per_step = $4,
++                       speed_min_kmh = $5,
++                       speed_max_kmh = $6,
++                       energy_max = $7,
++                       energy_left = LEAST(energy_left, $7),
++                       updated_at = now()
++                 WHERE active_nft_template_id IS NULL
++                    OR active_nft_template_id <> $1
++                    OR energy_units <> $2
++                    OR steps_per_unit <> $3
++                    OR lbc_per_step <> $4
++                    OR speed_min_kmh <> $5
++                    OR speed_max_kmh <> $6
++                    OR energy_max <> $7
++                """,
++                base_template_id,
++                base_energy_units_dec,
++                steps_per_unit,
++                base_lbc_per_step_dec,
++                base_speed_min_dec,
++                base_speed_max_dec,
++                base_energy_limit_steps,
++            )
+@@
+-            if row:
+-                await c.execute("UPDATE users SET username=$2, updated_at=now() WHERE user_id=$1", user_id, username)
++            if row:
++                await c.execute(
++                    "UPDATE users SET username=$2, updated_at=now() WHERE user_id=$1",
++                    user_id,
++                    username,
++                )
+                 return False
+-            await c.execute("""
+-                INSERT INTO users (user_id, username, energy_max, energy_left, energy_reset_at)
+-                VALUES ($1, $2, $3, $3, now())
+-            """, user_id, username, DAILY_ENERGY_STEPS)
++            base_template = await c.fetchrow(
++                """
++                SELECT id,
++                       energy_units,
++                       steps_per_unit,
++                       lbc_per_step,
++                       speed_min_kmh,
++                       speed_max_kmh
++                  FROM nft_templates
++                 WHERE slug=$1
++                """,
++                BASE_OFFCHAIN_NFT_SLUG,
++            )
++            if not base_template:
++                raise RuntimeError(
++                    "Базовый NFT-шаблон не найден. Запустите ensure_schema() перед регистрацией пользователей."
++                )
++            energy_units = base_template["energy_units"]
++            steps_per_unit = base_template["steps_per_unit"]
++            lbc_per_step = base_template["lbc_per_step"]
++            speed_min = base_template["speed_min_kmh"]
++            speed_max = base_template["speed_max_kmh"]
++            energy_max_steps = int(Decimal(energy_units) * steps_per_unit)
++            await c.execute(
++                """
++                INSERT INTO users (
++                    user_id,
++                    username,
++                    energy_max,
++                    energy_left,
++                    energy_reset_at,
++                    active_nft_template_id,
++                    energy_units,
++                    steps_per_unit,
++                    lbc_per_step,
++                    speed_min_kmh,
++                    speed_max_kmh
++                )
++                VALUES ($1, $2, $3, $3, now(), $4, $5, $6, $7, $8, $9)
++                """,
++                user_id,
++                username,
++                energy_max_steps,
++                base_template["id"],
++                energy_units,
++                steps_per_unit,
++                lbc_per_step,
++                speed_min,
++                speed_max,
++            )
+             return True

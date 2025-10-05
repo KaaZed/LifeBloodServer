@@ -2,6 +2,7 @@
 import os
 import math
 import json
+from decimal import Decimal, ROUND_HALF_UP
 import asyncpg
 from datetime import datetime, timezone, timedelta
 
@@ -19,9 +20,19 @@ from step_config import (
     SMOOTHING_WINDOW_POINTS,
     MAX_JUMP_METERS,
     MIN_JUMP_INTERVAL_SEC,
+    ENERGY_STEPS_PER_UNIT,
+    BASE_METACROSS_ENERGY_UNITS,
+    BASE_METACROSS_LBC_PER_STEP,
+    BASE_METACROSS_SPEED_MIN_KMH,
+    BASE_METACROSS_SPEED_MAX_KMH,
 )
 
 DB_DSN = os.getenv("DB_DSN") or os.getenv("DATABASE_URL") or "postgresql://localhost:5432/lifeblood"
+
+
+def _format_decimal(value: float, digits: int) -> str:
+    quant = Decimal("1").scaleb(-digits)
+    return format(Decimal(str(value)).quantize(quant, rounding=ROUND_HALF_UP), "f")
 
 
 def _tz3_start_of_today_utc(now_utc: datetime | None = None):
@@ -35,12 +46,14 @@ def _tz3_start_of_today_utc(now_utc: datetime | None = None):
 def _haversine_m(lat1, lon1, lat2, lon2):
     # быстро и без внешних либ
     R = EARTH_RADIUS_METERS
-    p = math.pi/180.0
-    dlat = (lat2-lat1)*p
-    dlon = (lon2-lon1)*p
-    a = (math.sin(dlat/2)**2 +
-         math.cos(lat1*p)*math.cos(lat2*p)*math.sin(dlon/2)**2)
-    return 2*R*math.asin(math.sqrt(a))
+    p = math.pi / 180.0
+    dlat = (lat2 - lat1) * p
+    dlon = (lon2 - lon1) * p
+    a = (
+        math.sin(dlat / 2) ** 2
+        + math.cos(lat1 * p) * math.cos(lat2 * p) * math.sin(dlon / 2) ** 2
+    )
+    return 2 * R * math.asin(math.sqrt(a))
 
 
 class LifeBloodDB:
@@ -60,79 +73,174 @@ class LifeBloodDB:
     async def ensure_schema(self):
         await self.connect()
         async with self.pool.acquire() as c:
-            # users
-            await c.execute(f"""
-            CREATE TABLE IF NOT EXISTS users (
-              user_id            BIGINT PRIMARY KEY,
-              username           TEXT,
-              referrer_id        BIGINT,
-              today_steps        INTEGER NOT NULL DEFAULT 0,
-              total_steps        BIGINT  NOT NULL DEFAULT 0,
-              today_lbc          NUMERIC(20,8) NOT NULL DEFAULT 0,
-              total_lbc          NUMERIC(20,8) NOT NULL DEFAULT 0,
-              energy_max         INTEGER NOT NULL DEFAULT 3000,
-              energy_left        INTEGER NOT NULL DEFAULT 3000,
-              dashboard_chat_id  BIGINT,
-              dashboard_msg_id   BIGINT,
-              reason_if_not_counted TEXT,
-              created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
-              updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
-            );
-            """)
-            # безопасные ADD COLUMN IF NOT EXISTS (если таблица уже есть с не всеми полями)
+            base_energy_units = _format_decimal(BASE_METACROSS_ENERGY_UNITS, 2)
+            base_lbc_per_step = _format_decimal(BASE_METACROSS_LBC_PER_STEP, 8)
+            base_speed_min = _format_decimal(BASE_METACROSS_SPEED_MIN_KMH, 2)
+            base_speed_max = _format_decimal(BASE_METACROSS_SPEED_MAX_KMH, 2)
+            steps_per_unit = int(ENERGY_STEPS_PER_UNIT)
+            await c.execute(
+                f"""
+                CREATE TABLE IF NOT EXISTS users (
+                  user_id            BIGINT PRIMARY KEY,
+                  username           TEXT,
+                  referrer_id        BIGINT,
+                  today_steps        INTEGER NOT NULL DEFAULT 0,
+                  total_steps        BIGINT  NOT NULL DEFAULT 0,
+                  today_lbc          NUMERIC(20,8) NOT NULL DEFAULT 0,
+                  total_lbc          NUMERIC(20,8) NOT NULL DEFAULT 0,
+                  energy_max         INTEGER NOT NULL DEFAULT {DAILY_ENERGY_STEPS},
+                  energy_left        INTEGER NOT NULL DEFAULT {DAILY_ENERGY_STEPS},
+                  energy_reset_at    TIMESTAMPTZ,
+                  active_nft_template_id INTEGER,
+                  energy_units       NUMERIC(10,2) NOT NULL DEFAULT {base_energy_units},
+                  steps_per_unit     INTEGER NOT NULL DEFAULT {steps_per_unit},
+                  lbc_per_step       NUMERIC(20,8) NOT NULL DEFAULT {base_lbc_per_step},
+                  speed_min_kmh      NUMERIC(6,2) NOT NULL DEFAULT {base_speed_min},
+                  speed_max_kmh      NUMERIC(6,2) NOT NULL DEFAULT {base_speed_max},
+                  dashboard_chat_id  BIGINT,
+                  dashboard_msg_id   BIGINT,
+                  reason_if_not_counted TEXT,
+                  created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+                  updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+                );
+                """
+            )
             for col, ddl in [
-              ("referrer_id",        "ALTER TABLE users ADD COLUMN IF NOT EXISTS referrer_id BIGINT"),
-              ("today_steps",        "ALTER TABLE users ADD COLUMN IF NOT EXISTS today_steps INTEGER NOT NULL DEFAULT 0"),
-              ("total_steps",        "ALTER TABLE users ADD COLUMN IF NOT EXISTS total_steps BIGINT NOT NULL DEFAULT 0"),
-              ("today_lbc",          "ALTER TABLE users ADD COLUMN IF NOT EXISTS today_lbc NUMERIC(20,8) NOT NULL DEFAULT 0"),
-              ("total_lbc",          "ALTER TABLE users ADD COLUMN IF NOT EXISTS total_lbc NUMERIC(20,8) NOT NULL DEFAULT 0"),
-              ("energy_max",         f"ALTER TABLE users ADD COLUMN IF NOT EXISTS energy_max INTEGER NOT NULL DEFAULT {DAILY_ENERGY_STEPS}"),
-              ("energy_left",        f"ALTER TABLE users ADD COLUMN IF NOT EXISTS energy_left INTEGER NOT NULL DEFAULT {DAILY_ENERGY_STEPS}"),
-              ("energy_reset_at",    "ALTER TABLE users ADD COLUMN IF NOT EXISTS energy_reset_at TIMESTAMPTZ"),
-              ("dashboard_chat_id",  "ALTER TABLE users ADD COLUMN IF NOT EXISTS dashboard_chat_id BIGINT"),
-              ("dashboard_msg_id",   "ALTER TABLE users ADD COLUMN IF NOT EXISTS dashboard_msg_id BIGINT"),
-              ("reason_if_not_counted","ALTER TABLE users ADD COLUMN IF NOT EXISTS reason_if_not_counted TEXT"),
-              ("updated_at",         "ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now()"),
-              ("created_at",         "ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now()"),
+                ("referrer_id", "ALTER TABLE users ADD COLUMN IF NOT EXISTS referrer_id BIGINT"),
+                ("today_steps", "ALTER TABLE users ADD COLUMN IF NOT EXISTS today_steps INTEGER NOT NULL DEFAULT 0"),
+                ("total_steps", "ALTER TABLE users ADD COLUMN IF NOT EXISTS total_steps BIGINT NOT NULL DEFAULT 0"),
+                ("today_lbc", "ALTER TABLE users ADD COLUMN IF NOT EXISTS today_lbc NUMERIC(20,8) NOT NULL DEFAULT 0"),
+                ("total_lbc", "ALTER TABLE users ADD COLUMN IF NOT EXISTS total_lbc NUMERIC(20,8) NOT NULL DEFAULT 0"),
+                ("energy_max", f"ALTER TABLE users ADD COLUMN IF NOT EXISTS energy_max INTEGER NOT NULL DEFAULT {DAILY_ENERGY_STEPS}"),
+                ("energy_left", f"ALTER TABLE users ADD COLUMN IF NOT EXISTS energy_left INTEGER NOT NULL DEFAULT {DAILY_ENERGY_STEPS}"),
+                ("energy_reset_at", "ALTER TABLE users ADD COLUMN IF NOT EXISTS energy_reset_at TIMESTAMPTZ"),
+                ("active_nft_template_id", "ALTER TABLE users ADD COLUMN IF NOT EXISTS active_nft_template_id INTEGER"),
+                ("energy_units", f"ALTER TABLE users ADD COLUMN IF NOT EXISTS energy_units NUMERIC(10,2) NOT NULL DEFAULT {base_energy_units}"),
+                ("steps_per_unit", f"ALTER TABLE users ADD COLUMN IF NOT EXISTS steps_per_unit INTEGER NOT NULL DEFAULT {steps_per_unit}"),
+                ("lbc_per_step", f"ALTER TABLE users ADD COLUMN IF NOT EXISTS lbc_per_step NUMERIC(20,8) NOT NULL DEFAULT {base_lbc_per_step}"),
+                ("speed_min_kmh", f"ALTER TABLE users ADD COLUMN IF NOT EXISTS speed_min_kmh NUMERIC(6,2) NOT NULL DEFAULT {base_speed_min}"),
+                ("speed_max_kmh", f"ALTER TABLE users ADD COLUMN IF NOT EXISTS speed_max_kmh NUMERIC(6,2) NOT NULL DEFAULT {base_speed_max}"),
+                ("dashboard_chat_id", "ALTER TABLE users ADD COLUMN IF NOT EXISTS dashboard_chat_id BIGINT"),
+                ("dashboard_msg_id", "ALTER TABLE users ADD COLUMN IF NOT EXISTS dashboard_msg_id BIGINT"),
+                ("reason_if_not_counted", "ALTER TABLE users ADD COLUMN IF NOT EXISTS reason_if_not_counted TEXT"),
+                ("updated_at", "ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now()"),
+                ("created_at", "ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now()"),
             ]:
                 await c.execute(ddl + ";")
-
-            await c.execute("""
+            for ddl in [
+                f"ALTER TABLE users ALTER COLUMN energy_max SET DEFAULT {DAILY_ENERGY_STEPS}",
+                f"ALTER TABLE users ALTER COLUMN energy_left SET DEFAULT {DAILY_ENERGY_STEPS}",
+                f"ALTER TABLE users ALTER COLUMN energy_units SET DEFAULT {base_energy_units}",
+                f"ALTER TABLE users ALTER COLUMN steps_per_unit SET DEFAULT {steps_per_unit}",
+                f"ALTER TABLE users ALTER COLUMN lbc_per_step SET DEFAULT {base_lbc_per_step}",
+                f"ALTER TABLE users ALTER COLUMN speed_min_kmh SET DEFAULT {base_speed_min}",
+                f"ALTER TABLE users ALTER COLUMN speed_max_kmh SET DEFAULT {base_speed_max}",
+            ]:
+                await c.execute(ddl + ";")
+            await c.execute(
+                """
                 UPDATE users
                    SET energy_reset_at = COALESCE(energy_reset_at, updated_at, created_at, now())
                  WHERE energy_reset_at IS NULL
-            """)
-
+                """
+            )
+            await c.execute(
+                """
+                CREATE TABLE IF NOT EXISTS nft_templates (
+                  id SERIAL PRIMARY KEY,
+                  slug TEXT UNIQUE NOT NULL,
+                  title TEXT NOT NULL,
+                  kind TEXT NOT NULL,
+                  is_onchain BOOLEAN NOT NULL DEFAULT FALSE,
+                  ton_collection TEXT,
+                  energy_units NUMERIC(10,2) NOT NULL,
+                  steps_per_unit INTEGER NOT NULL,
+                  lbc_per_step NUMERIC(20,8) NOT NULL,
+                  speed_min_kmh NUMERIC(6,2) NOT NULL,
+                  speed_max_kmh NUMERIC(6,2) NOT NULL,
+                  metadata JSONB,
+                  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                );
+                """
+            )
+            await c.execute("CREATE INDEX IF NOT EXISTS idx_nft_templates_kind ON nft_templates(kind);")
+            await c.execute(
+                """
+                CREATE TABLE IF NOT EXISTS user_nfts (
+                  id BIGSERIAL PRIMARY KEY,
+                  user_id BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+                  template_id INTEGER NOT NULL REFERENCES nft_templates(id),
+                  ton_wallet TEXT,
+                  token_address TEXT,
+                  token_id TEXT,
+                  metadata JSONB,
+                  is_active BOOLEAN NOT NULL DEFAULT FALSE,
+                  activated_at TIMESTAMPTZ,
+                  deactivated_at TIMESTAMPTZ,
+                  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                );
+                """
+            )
+            await c.execute("CREATE INDEX IF NOT EXISTS idx_user_nfts_user ON user_nfts(user_id);")
+            await c.execute("CREATE INDEX IF NOT EXISTS idx_user_nfts_template ON user_nfts(template_id);")
+            await c.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_user_nfts_user_active ON user_nfts(user_id) WHERE is_active;"
+            )
+            await c.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_user_nfts_token ON user_nfts(user_id, template_id, token_id);"
+            )
+            await c.execute(
+                """
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1
+                          FROM pg_constraint
+                         WHERE conname = 'users_active_nft_template_id_fkey'
+                    ) THEN
+                        ALTER TABLE users
+                            ADD CONSTRAINT users_active_nft_template_id_fkey
+                            FOREIGN KEY (active_nft_template_id)
+                            REFERENCES nft_templates(id);
+                    END IF;
+                END $$;
+                """
+            )
             # точки гео
-            await c.execute("""
-            CREATE TABLE IF NOT EXISTS locations (
-              id        BIGSERIAL PRIMARY KEY,
-              user_id   BIGINT NOT NULL,
-              ts        TIMESTAMPTZ NOT NULL,
-              lat       DOUBLE PRECISION NOT NULL,
-              lon       DOUBLE PRECISION NOT NULL,
-              accuracy  DOUBLE PRECISION,
-              heading   INTEGER,
-              created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-            );
-            CREATE INDEX IF NOT EXISTS idx_locations_user_ts ON locations(user_id, ts DESC);
-            """)
-
+            await c.execute(
+                """
+                CREATE TABLE IF NOT EXISTS locations (
+                  id        BIGSERIAL PRIMARY KEY,
+                  user_id   BIGINT NOT NULL,
+                  ts        TIMESTAMPTZ NOT NULL,
+                  lat       DOUBLE PRECISION NOT NULL,
+                  lon       DOUBLE PRECISION NOT NULL,
+                  accuracy  DOUBLE PRECISION,
+                  heading   INTEGER,
+                  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                );
+                CREATE INDEX IF NOT EXISTS idx_locations_user_ts ON locations(user_id, ts DESC);
+                """
+            )
             # состояние «пятна» (кластер)
-            await c.execute("""
-            CREATE TABLE IF NOT EXISTS user_state (
-              user_id     BIGINT PRIMARY KEY,
-              cluster_lat DOUBLE PRECISION,
-              cluster_lon DOUBLE PRECISION,
-              last_lat    DOUBLE PRECISION,
-              last_lon    DOUBLE PRECISION,
-              last_ts     TIMESTAMPTZ,
-              residual_m  DOUBLE PRECISION,
-              cluster_start_ts TIMESTAMPTZ,
-              segment_start_ts TIMESTAMPTZ,
-              recent_points JSONB
-            );
-            """)
+            await c.execute(
+                """
+                CREATE TABLE IF NOT EXISTS user_state (
+                  user_id     BIGINT PRIMARY KEY,
+                  cluster_lat DOUBLE PRECISION,
+                  cluster_lon DOUBLE PRECISION,
+                  last_lat    DOUBLE PRECISION,
+                  last_lon    DOUBLE PRECISION,
+                  last_ts     TIMESTAMPTZ,
+                  residual_m  DOUBLE PRECISION,
+                  cluster_start_ts TIMESTAMPTZ,
+                  segment_start_ts TIMESTAMPTZ,
+                  recent_points JSONB
+                );
+                """
+            )
             for ddl in [
                 "ALTER TABLE user_state ADD COLUMN IF NOT EXISTS cluster_start_ts TIMESTAMPTZ",
                 "ALTER TABLE user_state ADD COLUMN IF NOT EXISTS last_lat DOUBLE PRECISION",

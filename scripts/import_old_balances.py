@@ -1,13 +1,25 @@
 import asyncio
 import json
+import sys
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Iterable
 
+CURRENT_DIR = Path(__file__).resolve().parent
+POSSIBLE_ROOTS = (CURRENT_DIR, CURRENT_DIR.parent)
+for candidate in POSSIBLE_ROOTS:
+    if (candidate / "db.py").exists():
+        PROJECT_ROOT = candidate
+        break
+else:
+    PROJECT_ROOT = CURRENT_DIR
+
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 from db import LifeBloodDB
 
-
-DATA_FILE = Path(__file__).resolve().parent.parent / "members old.json"
+DATA_FILE = PROJECT_ROOT / "members old.json"
 
 
 def load_old_balances(path: Path = DATA_FILE) -> Iterable[dict[str, Any]]:
@@ -15,7 +27,7 @@ def load_old_balances(path: Path = DATA_FILE) -> Iterable[dict[str, Any]]:
         return json.load(fh)
 
 
-async def main_async():
+async def main_async() -> None:
     records = load_old_balances()
     db = LifeBloodDB()
     updated_count = 0

@@ -70,6 +70,31 @@ class LifeBloodDB:
             await self.pool.close()
             self.pool = None
 
+
+    async def list_broadcast_targets(self) -> list[tuple[int, int]]:
+        await self.connect()
+        async with self.pool.acquire() as c:
+            rows = await c.fetch(
+                """
+                SELECT user_id,
+                       COALESCE(NULLIF(dashboard_chat_id, 0), user_id) AS chat_id
+                  FROM users
+                 ORDER BY user_id
+                """
+            )
+
+        targets: list[tuple[int, int]] = []
+        for row in rows:
+            user_id = row["user_id"]
+            chat_id = row["chat_id"]
+            if chat_id is None:
+                continue
+            try:
+                targets.append((int(user_id), int(chat_id)))
+            except (TypeError, ValueError):
+                continue
+        return targets
+
     async def ensure_schema(self):
         await self.connect()
         async with self.pool.acquire() as c:
